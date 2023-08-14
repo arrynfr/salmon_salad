@@ -1,9 +1,8 @@
-y#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 cargo build
 qemu-system-x86_64 \
-	-enable-kvm \
 	-m 4096 \
 	-nographic \
 	-bios /usr/share/edk2/x64/OVMF_CODE.fd \
