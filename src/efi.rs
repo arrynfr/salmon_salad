@@ -1,3 +1,6 @@
+use core::sync::atomic::{AtomicPtr, Ordering};
+use core::ptr;
+
 #[repr(C)]
 struct EfiHeader {
     signature:      u64,
@@ -50,5 +53,25 @@ pub struct EfiSystemTable {
     con_in_handle:      *const usize,
     con_in:             *const usize,
     con_out_handle:     *const usize,
-    pub con_out:        *const  EfiSimpleTextOutputProtocol,
+    con_out:            *const  EfiSimpleTextOutputProtocol,
+}
+
+static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(ptr::null_mut());
+
+pub fn register_efi_system_table(table: *mut EfiSystemTable) {
+    let _ = EFI_SYSTEM_TABLE.compare_exchange(core::ptr::null_mut(),
+                                              table, Ordering::SeqCst,
+                                              Ordering::SeqCst);
+}
+
+pub fn output_string(string: &str) {
+    let table = EFI_SYSTEM_TABLE.load(Ordering::Relaxed);
+    //TODO: Convert string to UTF16 instead of writing cbar by char
+    for c in string.chars() {
+        let letter = [c as u16, 0 as u16];
+        unsafe {
+            let console_out = (*table).con_out;
+            ((*console_out).output_string)(console_out, letter.as_ptr());
+        }
+    }
 }
