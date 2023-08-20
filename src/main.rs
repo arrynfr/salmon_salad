@@ -1,5 +1,7 @@
 #![no_std]
 #![no_main]
+
+mod config;
 #[macro_use] mod print;
 use core::panic::PanicInfo;
 
@@ -15,6 +17,7 @@ fn panic(info: &PanicInfo) -> ! {
 #[no_mangle]
 extern fn efi_main(_handle: u64, table: *mut EfiSystemTable) {
     efi::register_efi_system_table(table);
+    if config::is_debug() {print!("You are running a debug build!\n");}
     print!("We're booting in UEFI mode ayyy!\n");
     loop{};
 }
