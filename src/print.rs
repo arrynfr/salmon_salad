@@ -17,3 +17,13 @@ macro_rules! print {
             format_args!($($arg)*));
     }
 }
+
+#[macro_export]
+macro_rules! println {
+    () => {
+        $crate::print!("\n\r")
+    };
+    ($($arg:tt)*) => {{
+        $crate::print!("println! is not yet implemented\n\r");
+    }}
+}

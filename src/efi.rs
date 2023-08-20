@@ -64,9 +64,17 @@ pub fn register_efi_system_table(table: *mut EfiSystemTable) {
                                               Ordering::SeqCst);
 }
 
+pub fn clear_screen() {
+    let table = EFI_SYSTEM_TABLE.load(Ordering::Relaxed);
+    unsafe {
+         let console_out = (*table).con_out;
+        ((*console_out).clear_screen)(console_out);
+    }
+}
+
 pub fn output_string(string: &str) {
     let table = EFI_SYSTEM_TABLE.load(Ordering::Relaxed);
-    //TODO: Convert string to UTF16 instead of writing cbar by char
+    //TODO: Convert string to UTF16 instead of writing char by char
     for c in string.chars() {
         let letter = [c as u16, 0 as u16];
         unsafe {
