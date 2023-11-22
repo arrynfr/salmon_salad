@@ -17,18 +17,18 @@ fn serial_init() {
     unsafe {
         asm!("out dx, al", in("dx") port+1, in("al") 0x00 as u8);
         asm!("out dx, al", in("dx") port+3, in("al") 0x80 as u8);
-	asm!("out dx, al", in("dx") port+0, in("al") 0x0C as u8);
+        asm!("out dx, al", in("dx") port+0, in("al") 0x0C as u8);
         asm!("out dx, al", in("dx") port+1, in("al") 0x00 as u8);
         asm!("out dx, al", in("dx") port+3, in("al") 0x03 as u8);
         asm!("out dx, al", in("dx") port+2, in("al") 0xC7 as u8);
         asm!("out dx, al", in("dx") port+4, in("al") 0x0B as u8);
         asm!("out dx, al", in("dx") port+4, in("al") 0x1E as u8);
-	asm!("out dx, al", in("dx") port+0, in("al") 0x41 as u8);
-	asm!("in al, dx", out("al") looptest, in("dx") port+0);
-	asm!("out dx, al", in("dx") port+4, in("al") 0x0F as u8);
+        asm!("out dx, al", in("dx") port+0, in("al") 0x41 as u8);
+        asm!("in al, dx", out("al") looptest, in("dx") port+0);
+        asm!("out dx, al", in("dx") port+4, in("al") 0x0F as u8);
     }
     if looptest == 0x41 {
-	print!("It seems to work!\n\r");
+        print!("It seems to work!\n\r");
     }
     else { panic!("No serial init!");}
 }
