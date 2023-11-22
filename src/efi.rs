@@ -2,6 +2,14 @@ use core::sync::atomic::{AtomicPtr, Ordering};
 use core::ptr;
 
 #[repr(C)]
+#[derive(Debug)]
+pub struct Guid(pub u32, pub u16, pub u16, pub [u8; 8]);
+
+/*#[repr(C)]
+#[derive(Debug)]
+pub struct Guid(pub u128);*/
+
+#[repr(C)]
 struct EfiHeader {
     signature:      u64,
     revision:       u32,
@@ -18,6 +26,12 @@ struct EfiSimpleTextOutputMode {
     cursor_column:  i32,
     cursor_row:     i32,
     cursor_visible: bool,
+}
+
+#[repr(C)]
+pub struct EfiConfigurationTable {
+	vendor_guid: Guid,
+	vendor_table: *const usize
 }
 
 #[repr(C)]
@@ -54,6 +68,12 @@ pub struct EfiSystemTable {
     con_in:             *const usize,
     con_out_handle:     *const usize,
     con_out:            *const  EfiSimpleTextOutputProtocol,
+    std_err_handle:	*const usize,
+    std_err:		*const usize,
+    runtime_services:	*const usize,
+    loot_services:	*const usize,
+    num_table_entries:	usize,
+    efi_config_table:	*const usize,
 }
 
 static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(ptr::null_mut());
@@ -82,4 +102,8 @@ pub fn output_string(string: &str) {
             ((*console_out).output_string)(console_out, letter.as_ptr());
         }
     }
+}
+
+pub fn walk_config_table(guid: Guid) -> EfiConfigurationTable {
+	EfiConfigurationTable {vendor_guid: guid, vendor_table: core::ptr::null()}
 }
