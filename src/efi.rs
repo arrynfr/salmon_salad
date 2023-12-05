@@ -29,7 +29,7 @@ struct EfiSimpleTextOutputMode {
 }
 
 #[repr(C)]
-pub struct EfiConfigurationTable {
+pub struct _EfiConfigurationTable {
 	vendor_guid: Guid,
 	vendor_table: *const usize
 }
@@ -104,6 +104,6 @@ pub fn output_string(string: &str) {
     }
 }
 
-pub fn walk_config_table(guid: Guid) -> EfiConfigurationTable {
-	EfiConfigurationTable {vendor_guid: guid, vendor_table: core::ptr::null()}
+pub fn _walk_config_table(guid: Guid) -> _EfiConfigurationTable {
+	_EfiConfigurationTable {vendor_guid: guid, vendor_table: core::ptr::null()}
 }

@@ -1,5 +1,4 @@
 use core::fmt::{Result, Write};
-
 pub struct StringWriter;
 
 impl Write for StringWriter {
@@ -19,11 +18,14 @@ macro_rules! print {
 }
 
 #[macro_export]
+#[allow_internal_unstable(format_args_nl)]
 macro_rules! println {
     () => {
         $crate::print!("\n\r")
     };
     ($($arg:tt)*) => {{
-        $crate::print!("println! is not yet implemented\n\r");
+        let _ = <$crate::print::StringWriter as core::fmt::Write>::write_fmt(
+            &mut $crate::print::StringWriter,
+            format_args_nl!($($arg)*));
     }}
 }
