@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-cargo build
+cargo build --target x86_64-unknown-uefi
 qemu-system-x86_64 \
 	-m 4096 \
 	-nographic \
