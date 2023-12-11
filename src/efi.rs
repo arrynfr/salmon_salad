@@ -94,12 +94,11 @@ pub fn clear_screen() {
 
 pub fn output_string(string: &str) {
     let table = EFI_SYSTEM_TABLE.load(Ordering::Relaxed);
-    //TODO: Convert string to UTF16 instead of writing char by char
-    for c in string.chars() {
-        let letter = [c as u16, 0 as u16];
+    //TODO: Convert string to UTF16 instead of writing char by char?
+    for c in string.encode_utf16() {
         unsafe {
             let console_out = (*table).con_out;
-            ((*console_out).output_string)(console_out, letter.as_ptr());
+            ((*console_out).output_string)(console_out, [c, 0 as u16].as_ptr());
         }
     }
 }
