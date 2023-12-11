@@ -3,15 +3,6 @@ set -e
 
 cargo build --target aarch64-unknown-uefi
 
-
-#if[ "$(uname -m)" == 'aarch64' ]
-#then
-#	case "$(uname -s)" in
-#		Linux*)		accelerator=kvm;;
-#		Darwin*)	accelerator=hvf;;
-#	esac
-#fi
-
 qemu-system-aarch64 \
 	-m 4096M \
 	-cpu cortex-a57 \
