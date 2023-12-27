@@ -9,12 +9,16 @@ mod efi;
 mod acpi;
 mod arch;
 
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    print!("{}", info);
+fn halt_system() -> ! {
     loop{
         arch::host::platform::wait_for_interrupt();
     }
+}
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    print!("{}", info);
+    halt_system();
 }
 
 #[no_mangle]
@@ -28,7 +32,5 @@ extern fn efi_main(_handle: u64, table: *mut efi::EfiSystemTable) {
         print!("You are running a debug build!\n\r");
     }
     println!("We're booting in UEFI mode↑↑");
-    loop{
-        arch::host::platform::wait_for_interrupt();
-    };
+    halt_system();
 }
