@@ -18,14 +18,11 @@ macro_rules! print {
 }
 
 #[macro_export]
-#[allow_internal_unstable(format_args_nl)]
 macro_rules! println {
     () => {
         $crate::print!("\n\r")
     };
-    ($($arg:tt)*) => {{
-        let _ = <$crate::print::StringWriter as core::fmt::Write>::write_fmt(
-            &mut $crate::print::StringWriter,
-            format_args_nl!($($arg)*));
-    }}
+    ($($arg:tt)*) => {
+        $crate::print!(concat!($($arg)*,"\n\r"))
+    }
 }
