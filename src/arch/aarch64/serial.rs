@@ -1,3 +1,16 @@
+use core::ptr::write_volatile;
+
 pub unsafe fn serial_init() {
-    panic!("Serial not implemented");
+
+}
+
+pub unsafe fn serial_putchar(c: char) {
+    let serial_base = 0x09000000 as *mut u8;
+    write_volatile(serial_base, c as u8);
+}
+
+pub unsafe fn serial_puts(string: &str) {
+    for c in string.chars() {
+        serial_putchar(c);
+    }
 }

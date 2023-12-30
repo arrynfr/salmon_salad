@@ -4,7 +4,7 @@
 
 mod config;
 #[macro_use] mod print;
-use core::panic::PanicInfo;
+use core::{panic::PanicInfo};
 mod efi;
 mod acpi;
 mod arch;
@@ -27,6 +27,7 @@ extern fn efi_main(_handle: u64, table: *mut efi::EfiSystemTable) {
     efi::clear_screen();
     unsafe {
         arch::host::serial::serial_init();
+        arch::host::serial::serial_puts("Test test test");
     }
     if config::IS_DEBUG {
         print!("You are running a debug build!\n\r");

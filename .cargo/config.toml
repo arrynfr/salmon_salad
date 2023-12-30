@@ -1,5 +1,8 @@
+#[build]
+#target = "x86_64-unknown-uefi"
+
 [build]
-target = "x86_64-unknown-uefi"
+target = "aarch64-unknown-uefi"
 
 [target.x86_64-unknown-uefi]
 rustflags = ["-C", "link-args=/debug:dwarf"]

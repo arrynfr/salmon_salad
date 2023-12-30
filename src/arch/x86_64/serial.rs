@@ -40,4 +40,15 @@ pub unsafe fn serial_init() {
     } else { panic!("No serial init!");}
 }
 
+pub unsafe fn serial_putchar(c: char) {
+    let port: u16 = SERIAL_PORT1;
+    outb(port+DATA_REGISTER, c as u8);
+}
 
+pub unsafe fn serial_puts(string: &str) {
+    for c in string.chars() {
+        unsafe {
+            serial_putchar(c);
+        }
+    }
+}
