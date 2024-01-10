@@ -1,13 +1,11 @@
 use core::sync::atomic::{AtomicPtr, Ordering};
 use core::ptr;
 
+static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(ptr::null_mut());
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct Guid(pub u32, pub u16, pub u16, pub [u8; 8]);
-
-/*#[repr(C)]
-#[derive(Debug)]
-pub struct Guid(pub u128);*/
 
 #[repr(C)]
 struct EfiHeader {
@@ -75,8 +73,6 @@ pub struct EfiSystemTable {
     num_table_entries:	usize,
     efi_config_table:	*const usize,
 }
-
-static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(ptr::null_mut());
 
 pub fn register_efi_system_table(table: *mut EfiSystemTable) {
     let _ = EFI_SYSTEM_TABLE.compare_exchange(core::ptr::null_mut(),
