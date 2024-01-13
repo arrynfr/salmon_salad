@@ -1,16 +1,16 @@
 #![no_std]
 #![no_main]
-#![feature(allow_internal_unstable)]
 
-mod config;
-#[macro_use] mod print;
-use core::{panic::PanicInfo};
-mod efi;
-mod acpi;
 mod arch;
+mod config;
+#[macro_use]
+mod print;
+use core::panic::PanicInfo;
+mod acpi;
+mod efi;
 
 fn halt_system() -> ! {
-    loop{
+    loop {
         arch::host::platform::wait_for_interrupt();
     }
 }
@@ -21,17 +21,21 @@ fn panic(info: &PanicInfo) -> ! {
     halt_system();
 }
 
-#[no_mangle]
-extern fn efi_main(_handle: u64, table: *mut efi::EfiSystemTable) {
-    efi::register_efi_system_table(table);
-    efi::clear_screen();
+fn kmain() -> ! {
     unsafe {
         arch::host::serial::serial_init();
-        arch::host::serial::serial_puts("Test test test");
+        arch::host::serial::serial_puts("Test test test\n\r");
     }
     if config::IS_DEBUG {
         print!("You are running a debug build!\n\r");
     }
-    println!("We're booting in UEFI mode↑↑");
     halt_system();
+}
+
+#[no_mangle]
+extern "efiapi" fn efi_main(_handle: u64, table: *mut efi::EfiSystemTable) {
+    efi::register_efi_system_table(table);
+    efi::clear_screen();
+    println!("We're booting in UEFI mode↑↑");
+    kmain();
 }
