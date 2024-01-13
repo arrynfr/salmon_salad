@@ -23,6 +23,7 @@ macro_rules! println {
         $crate::print!("\n\r")
     };
     ($($arg:tt)*) => {
-        $crate::print!(concat!($($arg)*,"\n\r"))
+        $crate::print!($($arg)*);
+        $crate::print!("\n\r")
     }
 }
