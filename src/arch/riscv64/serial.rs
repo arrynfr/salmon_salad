@@ -9,8 +9,10 @@ pub unsafe fn serial_putchar(c: char) {
     write_volatile(serial_base, c as u8);
 }
 
-pub unsafe fn serial_puts(string: &str) {
+pub fn serial_puts(string: &str) {
     for c in string.chars() {
-        serial_putchar(c);
+        unsafe {
+            serial_putchar(c);
+        }
     }
 }
