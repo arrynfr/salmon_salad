@@ -16,20 +16,16 @@ fn halt_system() -> ! {
 }
 
 #[panic_handler]
+#[inline(never)]
 fn panic(info: &PanicInfo) -> ! {
-    print!("{}", info);
+    println!("{}", info);
     halt_system();
 }
 
-fn kmain() -> ! {
-    unsafe {
-        arch::host::serial::serial_init();
-        arch::host::serial::serial_puts("Test test test\n\r");
-    }
-    if config::IS_DEBUG {
-        print!("You are running a debug build!\n\r");
-    }
-    halt_system();
+#[no_mangle]
+pub extern fn kmain() -> ! {
+    println!("Hello world!");
+    panic!("System halted!");
 }
 
 #[no_mangle]

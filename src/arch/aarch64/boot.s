@@ -1,10 +1,14 @@
 .section .text._start
 .global _start
-_start:	
+_start:
 	adr x1, hello_world
 	bl putstr
+	adrp x0, _stack_end
+	mov sp, x0
+	b kmain
 	adr x1, goodbye_world
 	bl putstr
+	b		kmain
 	wfi
 	b		_start
 

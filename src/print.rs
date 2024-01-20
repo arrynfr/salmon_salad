@@ -1,9 +1,11 @@
 use core::fmt::{Result, Write};
+
+use crate::arch;
 pub struct StringWriter;
 
 impl Write for StringWriter {
     fn write_str(&mut self, string: &str) -> Result {
-        crate::efi::output_string(string);
+        arch::host::serial::serial_puts(string);
         Ok(())
     }
 }
