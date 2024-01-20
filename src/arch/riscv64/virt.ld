@@ -21,10 +21,6 @@ SECTIONS
         *(.text*)
     } :segment_code
     
-    /DISCARD/ : {
-        *(.eh_frame .eh_frame.*)
-    }
-    
     .rodata : ALIGN(8) { *(.rodata*) } :segment_code
     
     .data : ALIGN(8) { 
