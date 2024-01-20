@@ -45,7 +45,7 @@ pub unsafe fn serial_putchar(c: char) {
     outb(port+DATA_REGISTER, c as u8);
 }
 
-pub unsafe fn serial_puts(string: &str) {
+pub fn serial_puts(string: &str) {
     for c in string.chars() {
         unsafe {
             serial_putchar(c);

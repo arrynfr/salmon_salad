@@ -107,7 +107,7 @@ impl Default for EfiMemoryDescriptor {
     }
 }
 
-pub fn get_memory_map() {
+pub fn _get_memory_map() {
     let table = EFI_SYSTEM_TABLE.load(Ordering::Relaxed);
     let size = 100 as usize;
     let memory_map_descriptor_buf: [EfiMemoryDescriptor; 32] = Default::default();
@@ -123,7 +123,7 @@ pub fn get_memory_map() {
             &descriptor_size,
             &descriptor_version,
         );
-        println!("Return code: {ret}");
+        println!("Return code: {}", ret);
     }
     if size > 0 {
         println!("{:?}\r\n", memory_map_descriptor_buf);
