@@ -4,7 +4,7 @@ set -e
 cargo build --target x86_64-unknown-uefi
 
 qemu-system-x86_64 \
-	-m 4096 \
+	-m 2048 \
 	-nographic \
 	-bios ovmf/OVMF_x86_64.fd \
 	-device driver=e1000,netdev=n0 \

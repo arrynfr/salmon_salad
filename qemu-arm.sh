@@ -4,7 +4,7 @@ set -e
 cargo build --target aarch64-unknown-uefi
 
 qemu-system-aarch64 \
-	-m 4096M \
+	-m 2048M \
 	-cpu cortex-a57 \
 	-M virt \
     -bios ovmf/OVMF_aarch64.fd \
