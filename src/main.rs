@@ -1,5 +1,7 @@
 #![no_std]
 #![no_main]
+#![feature(ascii_char)]
+#![feature(ascii_char_variants)]
 
 mod arch;
 mod config;
@@ -8,6 +10,7 @@ mod print;
 use core::panic::PanicInfo;
 mod acpi;
 mod efi;
+mod user;
 
 fn halt_system() -> ! {
     loop {
@@ -24,14 +27,5 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern fn kmain() -> ! {
-    println!("Hello world!");
     panic!("System halted!");
-}
-
-#[no_mangle]
-extern "efiapi" fn efi_main(_handle: u64, table: *mut efi::EfiSystemTable) {
-    efi::register_efi_system_table(table);
-    efi::clear_screen();
-    println!("We're booting in UEFI mode↑↑");
-    kmain();
 }

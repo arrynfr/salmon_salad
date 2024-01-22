@@ -4,6 +4,16 @@ use core::sync::atomic::{AtomicPtr, Ordering};
 
 static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(ptr::null_mut());
 
+#[no_mangle]
+extern "efiapi" fn efi_main(_handle: u64, table: *mut EfiSystemTable) {
+    register_efi_system_table(table);
+    clear_screen();
+    output_string("We're booting in UEFI mode↑↑ {}");
+
+    // From this point UEFI should not be used anywhere
+    crate::kmain();
+}
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct Guid(pub u32, pub u16, pub u16, pub [u8; 8]);

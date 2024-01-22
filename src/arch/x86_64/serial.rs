@@ -18,11 +18,11 @@ const BAUD_DIVISOR_HI: u16 = 1; // With DLAB = 1
 const IDFK_WHAT_THIS_DOES: u16 = 2;
 const LINE_CONTROL_REGISTER: u16 = 3;
 const MODEM_CONTROL_REGISTER: u16 = 4;
-const _LINE_STATUS_REGISTER: u16 = 5;
+const LINE_STATUS_REGISTER: u16 = 5;
 const _MODEM_STATUS_REGISTER: u16 = 6;
 const _SCRATCH_REGISTER: u16 = 7;
 
-pub unsafe fn serial_init() {
+pub unsafe fn serial_init(_base_addr: usize) {
     let port: u16 = SERIAL_PORT1;
     let looptest: u8;
     outb(port+INTERRUPT_ENABLE, 0x00);
@@ -38,6 +38,18 @@ pub unsafe fn serial_init() {
     if looptest == 0xDE {
         outb(port+MODEM_CONTROL_REGISTER, 0x0F);
     } else { panic!("No serial init!");}
+}
+
+pub fn serial_getchar() -> Option<u8> {
+    let port: u16 = SERIAL_PORT1;
+    unsafe {
+        if inb(LINE_STATUS_REGISTER) & 0x20 != 0 {
+            None
+        }
+        else {
+            Some(inb(port+DATA_REGISTER))
+        }
+    }
 }
 
 pub unsafe fn serial_putchar(c: char) {
