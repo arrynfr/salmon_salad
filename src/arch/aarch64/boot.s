@@ -5,10 +5,9 @@ _start:
 	bl putstr
 	adrp x0, _stack_end
 	mov sp, x0
-	b kmain
+	b _start_rust
 	adr x1, goodbye_world
 	bl putstr
-	b		kmain
 	wfi
 	b		_start
 
