@@ -10,7 +10,6 @@ mod print;
 use core::panic::PanicInfo;
 mod acpi;
 mod efi;
-mod user;
 
 fn halt_system() -> ! {
     loop {
