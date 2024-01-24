@@ -10,28 +10,22 @@ target = "x86_64-unknown-uefi"
 #[build]
 #target = "riscv64gc-unknown-none-elf"
 
-#[build]
-#target = "x86_64-unknown-none"
-
-#[target.x86_64-unknown-none]
-#rustflags = ["-C", "link-args=/debug:dwarf"]
-#runner = "qemu-system-x86_64 -m 4096M -nographic -kernel "
-
 [target.x86_64-unknown-uefi]
 rustflags = ["-C", "link-args=/debug:dwarf"]
-runner = "qemu-system-x86_64 -m 4096 -nographic -bios OVMF_x86_64.fd -device driver=e1000,netdev=n0 -netdev user,id=n0,tftp=target/x86_64-unknown-uefi/debug,bootfile=salmon_salad.efi"
+runner = "qemu-system-x86_64 -m 2048M -nographic -bios ovmf/OVMF_x86_64.fd -device driver=e1000,netdev=n0 -netdev user,id=n0 -kernel "
 
 [target.aarch64-unknown-uefi]
 rustflags = ["-C", "link-args=/debug:dwarf"]
+runner = "qemu-system-aarch64 -m 2048M -cpu cortex-a57 -M virt -bios ovmf/OVMF_aarch64.fd -device virtio-net,netdev=net0 -nographic -serial mon:stdio -netdev user,id=net0 -kernel "
 
 [target.aarch64-unknown-none]
 rustflags = ['-Clink-arg=-Tsrc/arch/aarch64/virt.ld']
-runner = "qemu-system-aarch64 -m 4096M -cpu cortex-a57 -M virt -device virtio-net,netdev=net0 -nographic -serial mon:stdio -netdev user,id=net0 -kernel "
+runner = "qemu-system-aarch64 -m 2048M -cpu cortex-a57 -M virt -device virtio-net,netdev=net0 -nographic -serial mon:stdio -netdev user,id=net0 -kernel "
 
 [target.aarch64-unknown-none-softfloat]
 rustflags = ['-Clink-arg=-Tsrc/arch/aarch64/virt.ld']
-runner = "qemu-system-aarch64 -m 4096M -cpu cortex-a57 -M virt -device virtio-net,netdev=net0 -nographic -serial mon:stdio -netdev user,id=net0 -kernel "
+runner = "qemu-system-aarch64 -m 2048M -cpu cortex-a57 -M virt -device virtio-net,netdev=net0 -nographic -serial mon:stdio -netdev user,id=net0 -kernel "
 
 [target.riscv64gc-unknown-none-elf]
 rustflags = ['-Clink-arg=-Tsrc/arch/riscv64/virt.ld']
-runner = "qemu-system-riscv64 -m 4096M -cpu rv64 -M virt -nographic -serial mon:stdio -bios none -kernel "
+runner = "qemu-system-riscv64 -m 2048M -cpu rv64 -M virt -device virtio-net,netdev=net0 -nographic -serial mon:stdio -bios none -netdev user,id=net0 -kernel "

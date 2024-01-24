@@ -3,13 +3,15 @@
 #![feature(ascii_char)]
 #![feature(ascii_char_variants)]
 
-mod arch;
-mod config;
 #[macro_use]
 mod print;
-use core::panic::PanicInfo;
-mod acpi;
+#[cfg(feature = "uefi")]
 mod efi;
+mod acpi;
+mod arch;
+mod config;
+use core::panic::PanicInfo;
+mod user;
 
 fn halt_system() -> ! {
     loop {
@@ -26,5 +28,6 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern fn kmain() -> ! {
+    user::sh::sh_main();
     panic!("System halted!");
 }
