@@ -8,7 +8,7 @@ static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(ptr::null_mu
 extern "efiapi" fn efi_main(_handle: u64, table: *mut EfiSystemTable) {
     register_efi_system_table(table);
     clear_screen();
-    output_string("We're booting in UEFI mode");
+    output_string("We're booting in UEFI mode\r\n");
 
     // From this point UEFI should not be used anywhere
     crate::kmain();
