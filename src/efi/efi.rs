@@ -3,47 +3,18 @@ use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 use super::constants::*;
 use core::mem::size_of;
-use core::mem::transmute;
 use core::ptr::addr_of;
 
 extern crate alloc;
 use alloc::alloc::{GlobalAlloc, Layout};
 use self::alloc::string::*;
 use self::alloc::vec::*;
-
+use crate::user::graphics::gfx::*;
 
 static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(ptr::null_mut());
-const EFI_TABLE_SIGNATURE: u64 = 0x5453595320494249;
 
 #[global_allocator]
 static ALLOCATOR: EfiAllocator = EfiAllocator::new();
-
-#[repr(C, align(4))]
-pub struct Color {b: u8, g: u8, r: u8}
-
-unsafe fn draw_pixel(framebuffer: *mut u32, fb_size: usize, stride: u32, x: usize, y: usize, color: u32) {
-    framebuffer.wrapping_add((x+(y*stride as usize))).write_volatile(color);
-}
-
-unsafe fn draw_circle(buffer: *mut u32, center: (usize, usize), radius: usize, color: Color, fb_size: usize, stride: u32) {
-    let (cx, cy) = center;
-    let s = stride as usize;
-    let x_min = cx.saturating_sub(radius);
-    let y_min = cy.saturating_sub(radius);
-    let x_max = (cx + radius).min(s);
-    let y_max = (cy + radius).min(fb_size/s);
-    let col = transmute(color);
-    
-    for x in x_min..=x_max {
-        for y in y_min..=y_max {
-            // Check if the current pixel is within the radius of the circle
-            if (x as isize - cx as isize).pow(2) + (y as isize - cy as isize).pow(2) <= (radius as isize).pow(2) {
-                let lol = x+(y*s as usize);
-                buffer.wrapping_add(lol).write_volatile(col);
-            }
-        }
-    }
-}
 
 #[no_mangle]
 extern "efiapi" fn efi_main(_handle: u64, table: *mut EfiSystemTable) {
@@ -52,7 +23,6 @@ extern "efiapi" fn efi_main(_handle: u64, table: *mut EfiSystemTable) {
     clear_screen();
     println!("We're booting in UEFI mode\r\n");
     _get_memory_map();
-    println!("looping...");
     {
         let mut x = String::from("Hello world from allocator!");
         println!("{x}");
@@ -63,23 +33,20 @@ extern "efiapi" fn efi_main(_handle: u64, table: *mut EfiSystemTable) {
         let table = EFI_SYSTEM_TABLE.load(Ordering::Relaxed);
         let boot_services = (*table).boot_services;
         let ptr: *const EfiGraphicsOutputProtocol = core::ptr::null();
-        let mut ret = ((*boot_services).locate_protocol)(&gop_guid, core::ptr::null(), addr_of!(ptr));
-        let mut md = 0;
-        ret = ((*ptr).set_mode)(ptr, 10);
-        clear_screen();
-        let mut fb = (*(*ptr).mode).frame_buffer_base;
-        let mut fb_size = (*(*ptr).mode).frame_buffer_size;
+        ((*boot_services).locate_protocol)(&gop_guid, core::ptr::null(), addr_of!(ptr));
+        ((*ptr).set_mode)(ptr, 10);
+        
+        let fb = (*(*ptr).mode).frame_buffer_base;
+        let fb_size = (*(*ptr).mode).frame_buffer_size;
         let ppl = (*(*(*ptr).mode).info).pixels_per_scanline;
-        let mut x = 100;
-        let y = 100;
-        draw_circle(fb as *mut u32, (125, 125), 100, Color{b: 0xff, g: 0x00, r: 0x00}, fb_size, ppl);
-        /*draw_circle(fb as *mut u32, (100, 100), 10, 0xFFFFFFFF, fb_size, ppl);
-        draw_circle(fb as *mut u32, (150, 100), 10, 0xFFFFFFFF, fb_size, ppl);
-        draw_circle(fb as *mut u32, (100, 100), 5, 0x0, fb_size, ppl);
-        draw_circle(fb as *mut u32, (150, 100), 5, 0x0, fb_size, ppl);
-        draw_circle(fb as *mut u32, (125, 160), 20, 0xFFFFFFFF, fb_size, ppl);*/
-        let mut fb = (*(*ptr).mode).frame_buffer_base;
-        let mut fb_size = (*(*ptr).mode).frame_buffer_size;
+        let fb_x = (*(*(*ptr).mode).info).horizontal_resolution;
+        let fb_y = (*(*(*ptr).mode).info).vertical_resolution;
+        let graphicsBuffer = GraphicsBuffer::new(fb, fb_size, ppl, fb_x, fb_y, 0);
+        graphicsBuffer.draw_rectangle(0, 0, graphicsBuffer.horizontal_resolution as isize, graphicsBuffer.vertical_resolution as isize, Color{r: 128, g: 128, b: 128});
+
+        graphicsBuffer.draw_line(0, 0, graphicsBuffer.horizontal_resolution as isize, graphicsBuffer.vertical_resolution as isize, Color{r: 255, g: 255, b: 255});
+        graphicsBuffer.draw_circle((500,500), 100, Color{r: 255, g: 0, b: 0});
+        graphicsBuffer.draw_rectangle(60000, 60000, 100, 100, Color{r: 0, g: 0, b: 255});
     }
 
     // From this point UEFI should not be used anywhere
@@ -298,7 +265,7 @@ pub struct EfiBootServices {
     // Library Services
     pub protocols_per_handle: extern "C" fn(),
     pub locate_handle_buffer: extern "C" fn(),
-    pub locate_protocol: extern "C" fn(protocol: *const Guid, registration: *const u8, interface: *const *const EfiGraphicsOutputProtocol) -> usize,
+    locate_protocol: extern "C" fn(protocol: *const Guid, registration: *const u8, interface: *const *const EfiGraphicsOutputProtocol) -> usize,
     pub install_multiple_protocol_interfaces: extern "C" fn(),
     pub uninstall_multiple_protocol_interfaces: extern "C" fn(),
 

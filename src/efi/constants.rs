@@ -30,7 +30,7 @@ pub enum EfiAllocateType {
     MaxAllocateType
  }
 
-pub type BOOLEAN = bool;
+/*pub type BOOLEAN = bool;
 pub type INTN = isize;
 pub type UINTN = usize;
 pub type INT8 = i8;
@@ -50,4 +50,4 @@ pub type VOID = u8;
 pub type EfiStatus = usize;
  
 pub type EfiPhysicalAddress = u64;
-pub type EfiVirtualAddress = u64;
+pub type EfiVirtualAddress = u64;*/
