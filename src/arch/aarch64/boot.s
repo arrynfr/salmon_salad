@@ -1,6 +1,12 @@
 .section .text._start
 .global _start
 _start:
+	#Enable floating point bits FPEN
+	mrs    x1, cpacr_el1
+	mov    x0, #(3 << 20)
+	orr    x0, x1, x0
+	msr    cpacr_el1, x0
+	
 	adr x1, hello_world
 	bl putstr
 	adrp x0, _stack_end
