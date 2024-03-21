@@ -1,5 +1,6 @@
 use core::arch::global_asm;
 use core::arch::asm;
+use crate::driver::qemu::ramfb::*;
 use crate::arch::aarch64::serial::serial_init;
 
 global_asm!(include_str!("boot.s"));
@@ -79,11 +80,26 @@ fn init_page_tables(translation_table_base: usize) {
     }
 }
 
+extern "C" {
+    static _stack_end: u8;
+}
+
 #[no_mangle]
 pub extern fn _start_rust() -> ! {
-    unsafe {
+    /*unsafe {
         serial_init(0x09000000);
-    }
+    }*/
     //init_mmu();
+    unsafe {
+        let bpp = 4;
+        let width = 1024;
+        let height = 768;
+        let fb_addr = &_stack_end as *const u8 as *mut u8;
+        setup_ramfb(fb_addr, width, height);
+        for x in 0..(bpp*width*height) {
+            fb_addr.add(x as usize).write_volatile(0xFF);
+        }
+    }
+
     crate::kmain()
 }

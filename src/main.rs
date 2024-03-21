@@ -6,10 +6,11 @@
 #[macro_use]
 mod print;
 #[cfg(feature = "uefi")]
-mod efi;
+mod efi; // This is the entry point on UEFI systems
 mod acpi;
 mod arch;
 mod config;
+mod driver;
 use core::panic::PanicInfo;
 mod user;
 

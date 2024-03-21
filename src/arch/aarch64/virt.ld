@@ -27,7 +27,7 @@ SECTIONS
     } :segment_data
     .stack (NOLOAD) :
     {
-        . += 0x2800;
-        _stack_end = .;
+        . += 0x50800;
+        PROVIDE(_stack_end = .);
     } :segment_boot_core_stack
 }
