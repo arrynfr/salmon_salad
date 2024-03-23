@@ -37,7 +37,12 @@ const QEMU_CFG_DMA_CTL_SELECT: u32 =0x08;
 const QEMU_CFG_DMA_CTL_WRITE: u32 = 0x10;
 
 unsafe fn qemu_dma_transfer (control: u32, len: u32, addr: u64) {
+    #[cfg(target_arch = "riscv64")]
+    let fw_cfg_dma: *mut u64 = 0x10100010 as *mut u64;
+
+    #[cfg(target_arch = "aarch64")]
     let fw_cfg_dma: *mut u64 = 0x9020010 as *mut u64;
+    
     let dma = FWCfgDmaAccess {
         control: control.to_be(),
         len: len.to_be(),
@@ -88,14 +93,14 @@ pub fn setup_ramfb(fb_addr: *mut u8, width: u32, height: u32) {
     (('2' as u32) << 16) | (('4' as u32) << 24);
         
     println!("Placing fb at: {fb_addr:#x?}");
-    let bpp = 4;
-    let ramfb_cfg = RamFBCfg {
+    let bpp: i32 = 3;
+    let mut ramfb_cfg = RamFBCfg {
         addr: (fb_addr as u64).to_be(),
         fmt: (pixel_format).to_be(),
         flags: (0 as u32).to_be(),
         w: (width as u32).to_be(),
         h: (height as u32).to_be(),
-        st: (bpp*width as u32).to_be()
+        st: (width*bpp as u32).to_be()
     };
 
     unsafe {
@@ -103,4 +108,5 @@ pub fn setup_ramfb(fb_addr: *mut u8, width: u32, height: u32) {
     |   QEMU_CFG_DMA_CTL_SELECT 
     |   QEMU_CFG_DMA_CTL_WRITE, mem::size_of::<RamFBCfg>() as u32, addr_of!(ramfb_cfg) as u64);
     }
+
 }
