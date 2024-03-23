@@ -41,7 +41,7 @@ extern "efiapi" fn efi_main(_handle: u64, table: *mut EfiSystemTable) {
         let ppl = (*(*(*ptr).mode).info).pixels_per_scanline;
         let fb_x = (*(*(*ptr).mode).info).horizontal_resolution;
         let fb_y = (*(*(*ptr).mode).info).vertical_resolution;
-        let graphicsBuffer = GraphicsBuffer::new(fb, fb_size, ppl, fb_x, fb_y, 0);
+        let graphicsBuffer = GraphicsBuffer::new(fb, fb_size, ppl, fb_x, fb_y, PixelFormat::BGRX8, 4);
         graphicsBuffer.draw_rectangle(0, 0, graphicsBuffer.horizontal_resolution as isize, graphicsBuffer.vertical_resolution as isize, Color{r: 128, g: 128, b: 128});
 
         graphicsBuffer.draw_line(0, 0, graphicsBuffer.horizontal_resolution as isize, graphicsBuffer.vertical_resolution as isize, Color{r: 255, g: 255, b: 255});
@@ -130,7 +130,7 @@ struct EfiGraphicsOutputModeInformation {
     vertical_resolution: u32,
     pixel_format: EfiGraphicsPixelFormat,
     pixel_information: EfiPixelBitmask,
-    pixels_per_scanline: u32
+    pixels_per_scanline: u32    
 }
 
 #[repr(C)]
