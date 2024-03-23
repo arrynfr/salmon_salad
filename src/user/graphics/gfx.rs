@@ -6,12 +6,13 @@ use super::font::*;
 pub struct Color {pub b: u8, pub g: u8, pub r: u8}
 pub struct Vec2 {x: usize, y: usize}
 
-#[derive(PartialEq)]
+#[derive(Debug ,PartialEq)]
 pub enum PixelFormat {
     BGR8,
     BGRX8
 }
 
+#[derive(Debug)]
 pub struct GraphicsBuffer {
     address: *mut u8,
     pub size: usize,

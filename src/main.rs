@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(ascii_char)]
 #![feature(ascii_char_variants)]
+#![feature(panic_info_message)]
 
 #[macro_use]
 mod print;
@@ -23,7 +24,8 @@ fn halt_system() -> ! {
 #[panic_handler]
 #[inline(never)]
 fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
+    println!("panicked at {}:", info.location().unwrap());
+    println!("{}", info.message().unwrap());
     halt_system();
 }
 
