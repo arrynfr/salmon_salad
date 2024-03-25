@@ -20,8 +20,12 @@ _start:
 	mov x0, #(3 << 20)
 	orr x0, x1, x0
 	msr cpacr_el1, x0
-	isb
 	
+	#Set up EL1 exception vector table (exception.s)
+	adr x0, vector_table_el1
+	msr vbar_el1, x0
+
+	isb
 	b _start_rust
 
 .core_fail:

@@ -6,6 +6,7 @@ use crate::user::graphics::gfx::*;
 use crate::arch::aarch64::serial::serial_init;
 
 global_asm!(include_str!("boot.s"));
+global_asm!(include_str!("exception.s"));
 
 const PAGE_SIZE: usize = 4096; // 4 KB page size
 
@@ -95,7 +96,7 @@ pub extern fn _start_rust() -> ! {
     unsafe {
         init_smp();
     }
-    
+
     let bpp = 3;
     let width = 1024;
     let height = 768;
