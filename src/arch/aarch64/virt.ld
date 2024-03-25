@@ -1,9 +1,11 @@
 _kernel_base = 0x40080000;
+_stack_size = 0xC00000;
+_num_cores = 2;
 ENTRY(_kernel_base)
 
 PHDRS
 {
-    segment_boot_core_stack PT_LOAD FLAGS(6);
+    segment_stack           PT_LOAD FLAGS(6);
     segment_code            PT_LOAD FLAGS(5);
     segment_data            PT_LOAD FLAGS(6);
 }
@@ -27,7 +29,7 @@ SECTIONS
     } :segment_data
     .stack (NOLOAD) :
     {
-        . += 0x50800;
+        . += _stack_size*_num_cores;
         PROVIDE(_stack_end = .);
-    } :segment_boot_core_stack
+    } :segment_stack
 }

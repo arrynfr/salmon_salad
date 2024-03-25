@@ -11,12 +11,12 @@ runner = "qemu-system-aarch64 -m 2048M -cpu cortex-a57 -M virt -bios ovmf/OVMF_a
 
 [target.aarch64-unknown-none]
 rustflags = ['-Clink-arg=-Tsrc/arch/aarch64/virt.ld']
-runner = "qemu-system-aarch64 -m 2048M -cpu cortex-a57 -M virt -device virtio-net,netdev=net0 -serial mon:stdio -netdev user,id=net0 -device ramfb -kernel "
+runner = "qemu-system-aarch64 -m 2048M -cpu cortex-a57 -smp 2 -M virt -device virtio-net,netdev=net0 -serial mon:stdio -netdev user,id=net0 -device ramfb -usb -device usb-ehci,id=ehci -device usb-kbd -device loader,addr=0x40080000,cpu-num=0 -kernel "
 
 [target.aarch64-unknown-none-softfloat]
 rustflags = ['-Clink-arg=-Tsrc/arch/aarch64/virt.ld']
-runner = "qemu-system-aarch64 -m 2048M -cpu cortex-a57 -M virt -device virtio-net,netdev=net0 -serial mon:stdio -netdev user,id=net0 -device ramfb -kernel "
+runner = "qemu-system-aarch64 -m 2048M -cpu cortex-a57 -M virt -device virtio-net,netdev=net0 -serial mon:stdio -netdev user,id=net0 -usb -device usb-ehci,id=ehci -device usb-kbd -device ramfb -kernel "
 
 [target.riscv64gc-unknown-none-elf]
 rustflags = ['-Clink-arg=-Tsrc/arch/riscv64/virt.ld']
-runner = "qemu-system-riscv64 -m 2048M -cpu rv64 -M virt -device virtio-net,netdev=net0 -serial mon:stdio -bios none -netdev user,id=net0 -device ramfb -kernel "
+runner = "qemu-system-riscv64 -m 2048M -cpu rv64 -M virt -device virtio-net,netdev=net0 -serial mon:stdio -bios none -netdev user,id=net0 -usb -device usb-ehci,id=ehci -device usb-kbd -device ramfb -kernel "
