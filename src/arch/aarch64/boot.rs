@@ -1,6 +1,7 @@
 use core::arch::global_asm;
 use core::arch::asm;
 use crate::driver::qemu::ramfb::*;
+use crate::driver::qemu::smp::*;
 use crate::user::graphics::gfx::*;
 use crate::arch::aarch64::serial::serial_init;
 
@@ -25,7 +26,7 @@ fn init_mmu() {
         ");
 
         // Set up page tables
-        let translation_table_base = 0x1000_0000; // Adjust this based on your memory layout
+        let translation_table_base = 0x4008_0000; // Adjust this based on your memory layout
         init_page_tables(translation_table_base);
 
         // Enable MMU and caches
@@ -75,7 +76,7 @@ fn init_page_tables(translation_table_base: usize) {
 
         // Invalidate TLB entries to ensure the changes take effect
         asm!("
-            tlbi vmalle1
+            tlbi alle1
             isb
         ");
     }
@@ -91,6 +92,10 @@ pub extern fn _start_rust() -> ! {
         serial_init(0x09000000);
     }*/
     //init_mmu();
+    unsafe {
+        init_smp();
+    }
+    
     let bpp = 3;
     let width = 1024;
     let height = 768;
@@ -109,5 +114,17 @@ pub extern fn _start_rust() -> ! {
         graphics_buffer.draw_string(10, 10+(8*1), "Salmon is my passion!", Color { b: 0x99, g: 0x99, r: 0x99 });
     }
 
+    for y in (0xa000000..0xa003e00).step_by(0x200) {
+        let some_virtio = (y as usize) as *mut u8;
+        let mut some_data: [u8; 0x200] = [0; 0x200];
+        for x in 0..some_data.len() {
+            unsafe {
+                some_data[x] = some_virtio.add(x).read_volatile();
+            }
+        }
+        //println!("Addr 0x{y:x?}:\r\n{some_data:02x?}");
+    }
+
+    
     crate::kmain()
 }

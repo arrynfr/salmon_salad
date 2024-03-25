@@ -2,20 +2,6 @@
 .global _start
 .equ PSCI_0_2_FN64_CPU_ON, 0xc4000003
 _start:
-# With this we can enable additional cores on the QEMU virt board
-#.core_bringup:
-	#mrs x2, MPIDR_EL1
-	#and x2, x2, #0xFF
-	#cmp x2, 0
-	#bne .stack_init
-	#ldr x0, =PSCI_0_2_FN64_CPU_ON
-	#mov x1, 1 // enable core 1
-	#adrp x2, _start // pc start address
-	#mov x3, 0
-	#hvc 0
-	#cmp x0, 0
-	#bne .core_fail
-
 .stack_init:
 	adrp x1, _stack_end
 	add x1, x1, 4
