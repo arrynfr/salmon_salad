@@ -1,5 +1,6 @@
 use core::arch::global_asm;
 use core::arch::asm;
+use crate::arch::aarch64::platform::wait_for_interrupt;
 use crate::driver::qemu::ramfb::*;
 use super::driver::qemu::smp::*;
 use crate::user::graphics::gfx::*;
@@ -88,7 +89,14 @@ extern "C" {
 }
 
 #[no_mangle]
-pub extern fn _start_rust() -> ! {
+pub extern fn _start_rust(current_core: u64) -> ! {
+    if current_core != 0 {
+        loop {
+            print!("{current_core}\r\n");
+            wait_for_interrupt();
+        }
+    }
+    
     /*unsafe {
         serial_init(0x09000000);
     }*/
