@@ -3,13 +3,14 @@ use super::font::*;
 
 #[repr(C, align(4))]
 #[derive(Copy, Clone, Debug)]
-pub struct Color {pub b: u8, pub g: u8, pub r: u8}
+pub struct Color {pub b: u16, pub g: u16, pub r: u16}
 pub struct Vec2 {x: usize, y: usize}
 
 #[derive(Debug ,PartialEq)]
 pub enum PixelFormat {
     BGR8,
-    BGRX8
+    BGRX8,
+    APL
 }
 
 #[derive(Debug)]
@@ -39,14 +40,14 @@ impl GraphicsBuffer {
     pub unsafe fn clear_screen(&self) {
         let fba: *mut u128 = self.address as *mut u128;
         let col_128: u128 = 0 as u128;
-        //col_128 = col_128 << 96 | col_128 << 64 | col_128 << 32 | col_128;
-        println!("{}", self.size%16);
         if self.size%16 == 0 {
             for x in 0..self.size/16 {
                 fba.add(x).write_volatile(col_128);
             }
         } else {
-            println!("FB size not divisible by 16");
+            for x in 0..self.size {
+                (fba as *mut u8).add(x).write_volatile(0);
+            }
         }
     }
 
@@ -71,11 +72,24 @@ impl GraphicsBuffer {
                     fba.wrapping_add(offset).write_volatile(color);
                 }
             }
+            PixelFormat::APL => {
+                let i_offset = x+(y*stride as isize);
+                let offset: usize = i_offset as usize;
+                let fba = self.address as *mut u32;
+                if i_offset > 0 && offset < self.size {
+                    fba.wrapping_add(offset).write_volatile(color);
+                }
+            }
         }
     }
 
     pub unsafe fn draw_pixel_col(&self, x: isize, y: isize, color: Color) {
-        let col = transmute(color);
+        let col;
+        if self.pixel_format == PixelFormat::APL {
+            col = 0 | ((color.r & 0x3FF) as u32) << 20 | ((color.g & 0x3FF) as u32) << 10 | ((color.b & 0x3FF) as u32) << 0;
+        } else {
+            col = ((color.r & 0xFF) as u32) << 16 | ((color.g & 0xFF) << 8) as u32 | ((color.b & 0xFF) as u32);
+        }
         self.draw_pixel(x, y, col);
     }
 
@@ -121,21 +135,29 @@ impl GraphicsBuffer {
         }
     }
 
-    pub unsafe fn draw_character(&self, x: isize, y: isize, ch: char, color: Color) {
+    pub unsafe fn draw_character(&self, x: isize, y: isize, ch: char, color: Color, font_size: isize) {
         let font_char = FONT[ch as usize];
-        for row in 0..7 {
+        for row in 0..8 {
             let font_char_row = font_char[row as usize];
-            for px in 0..7 {
+            for px in 0..8 {
                 if font_char_row & (1 << px) != 0 {
-                    self.draw_pixel_col(x+px, y+row, color);
+                    self.draw_rectangle(x+px*font_size, y+row*font_size, font_size, font_size, color);
                 }
             }
         }
     }
 
-    pub unsafe fn draw_string(&self, x: isize, y: isize, string: &str, color: Color) {
-        for (pos,character) in string.chars().enumerate() {
-            self.draw_character(x+(8*pos as isize), y, character, color);
+    pub unsafe fn draw_string(&self, x: isize, y: isize, string: &str, color: Color, font_size: isize) {
+        let mut line = 0;
+        let mut pos = 0;
+        for character in string.chars() {
+            if character == '\n' {
+                line += 1;
+                pos = 0;
+            } else {
+                self.draw_character(x+(font_size*8*pos as isize), y+(font_size*8*line), character, color, font_size);
+                pos += 1;
+            }
         }
     }
 }

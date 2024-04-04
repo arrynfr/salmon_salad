@@ -4,12 +4,15 @@ use core::sync::atomic::{AtomicPtr, Ordering};
 use super::constants::*;
 use core::mem::size_of;
 use core::ptr::addr_of;
+use core::arch::asm;
 
 extern crate alloc;
 use alloc::alloc::{GlobalAlloc, Layout};
 use self::alloc::string::*;
 use self::alloc::vec::*;
+use self::alloc::format;
 use crate::user::graphics::gfx::*;
+use crate::user::graphics::console::*;
 
 static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(ptr::null_mut());
 
@@ -34,23 +37,41 @@ extern "efiapi" fn efi_main(_handle: u64, table: *mut EfiSystemTable) {
         let boot_services = (*table).boot_services;
         let ptr: *const EfiGraphicsOutputProtocol = core::ptr::null();
         ((*boot_services).locate_protocol)(&gop_guid, core::ptr::null(), addr_of!(ptr));
-        ((*ptr).set_mode)(ptr, 10);
+        let a = ((*boot_services).set_watchdog_timer)(0, 0xFFFFF, 0, core::ptr::null());
+        let max_mode = (*(*ptr).mode).max_mode;
         
-        let fb = (*(*ptr).mode).frame_buffer_base;
-        let fb_size = (*(*ptr).mode).frame_buffer_size;
-        let ppl = (*(*(*ptr).mode).info).pixels_per_scanline;
-        let fb_x = (*(*(*ptr).mode).info).horizontal_resolution;
-        let fb_y = (*(*(*ptr).mode).info).vertical_resolution;
-        let graphicsBuffer = GraphicsBuffer::new(fb, fb_size, ppl, fb_x, fb_y, PixelFormat::BGRX8, 4);
-        graphicsBuffer.draw_rectangle(0, 0, graphicsBuffer.horizontal_resolution as isize, graphicsBuffer.vertical_resolution as isize, Color{r: 128, g: 128, b: 128});
-
-        graphicsBuffer.draw_line(0, 0, graphicsBuffer.horizontal_resolution as isize, graphicsBuffer.vertical_resolution as isize, Color{r: 255, g: 255, b: 255});
-        graphicsBuffer.draw_circle((500,500), 100, Color{r: 255, g: 0, b: 0});
-        graphicsBuffer.draw_rectangle(60000, 60000, 100, 100, Color{r: 0, g: 0, b: 255});
+        for x in 0..max_mode {
+            ((*ptr).set_mode)(ptr, x);
+            let fb = (*(*ptr).mode).frame_buffer_base;
+            let fb_size = (*(*ptr).mode).frame_buffer_size;
+            let ppl = (*(*(*ptr).mode).info).pixels_per_scanline;
+            let fb_x = (*(*(*ptr).mode).info).horizontal_resolution;
+            let fb_y = (*(*(*ptr).mode).info).vertical_resolution;
+            let px_fmt = &(*(*(*ptr).mode).info).pixel_format;
+            let fs = 2;
+            let con_w = ((fb_x/8)/fs) as usize;
+            let con_h =  ((fb_y/8)/fs) as usize;
+            
+            let graphicsBuffer = GraphicsBuffer::new(fb, fb_size, ppl, fb_x, fb_y, PixelFormat::APL, 4);
+            let consoleBuffer = GraphicsBuffer::new(fb, fb_size, ppl, fb_x, fb_y, PixelFormat::APL, 4);
+            let mut console = GfxConsole::new(con_w, con_h, fs as usize, consoleBuffer);
+    
+            console.clear();
+            
+            //graphicsBuffer.draw_rectangle(0, 0, graphicsBuffer.horizontal_resolution as isize, graphicsBuffer.vertical_resolution as isize, Color{r: 128, g: 128, b: 128});
+            graphicsBuffer.draw_line(0, 0, graphicsBuffer.horizontal_resolution as isize, graphicsBuffer.vertical_resolution as isize, Color{r: 255, g: 255, b: 255});
+            graphicsBuffer.draw_circle((100,400), 100, Color{r: 0x3ff, g: 0, b: 0});
+            graphicsBuffer.draw_circle((200,400), 100, Color{r: 0, g: 0x3ff, b: 0});
+            graphicsBuffer.draw_circle((300,400), 100, Color{r: 0, g: 0, b: 0x3ff});
+            console.write(format!("Current mode: {x:?} Max mode: {max_mode:?}\n").as_str());
+            console.write(format!("{:#x?}\n", *(*(*ptr).mode).info).as_str());
+            //console.write(format!("{:#?}", console).as_str());
+            for _ in 0..20000000 {}
+        }
     }
-
+    loop {}
     // From this point UEFI should not be used anywhere
-    crate::kmain();
+    //crate::kmain();
 }
 
 #[repr(C)]
@@ -251,7 +272,7 @@ pub struct EfiBootServices {
     // Misc Services
     pub get_next_monotonic_count: extern "C" fn(),
     pub stall: extern "C" fn(),
-    pub set_watchdog_timer: extern "C" fn(),
+    pub set_watchdog_timer: extern "C" fn(usize, u64, usize, *const u8) -> usize,
 
     // DriverSupport Services
     pub connect_controller: extern "C" fn(),

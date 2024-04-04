@@ -119,19 +119,9 @@ pub extern fn _start_rust(current_core: u64) -> ! {
 
     unsafe {
         graphics_buffer.clear_screen();
-        graphics_buffer.draw_string(10, 10, "Hello world from salmon_salad", Color { b: 0x99, g: 0x99, r: 0x99 });
-        graphics_buffer.draw_string(10, 10+(8*1), "Salmon is my passion!", Color { b: 0x99, g: 0x99, r: 0x99 });
-    }
-
-    for y in (0xa000000..0xa003e00).step_by(0x200) {
-        let some_virtio = (y as usize) as *mut u8;
-        let mut some_data: [u8; 0x200] = [0; 0x200];
-        for x in 0..some_data.len() {
-            unsafe {
-                some_data[x] = some_virtio.add(x).read_volatile();
-            }
-        }
-        //println!("Addr 0x{y:x?}:\r\n{some_data:02x?}");
+        graphics_buffer.draw_string(10, 10, "Hello world from salmon_salad", Color { b: 0x99, g: 0x99, r: 0x99 }, 2);
+        graphics_buffer.draw_string(10, 10+16, "Salmon is my passion!", Color { b: 0x99, g: 0x99, r: 0x99 }, 6);
+        graphics_buffer.draw_rectangle(0, (height/2) as isize, width as isize, (height/2) as isize, Color { b: 255, g: 0, r: 0 });
     }
 
     
