@@ -36,7 +36,7 @@ pub extern fn _start_rust() -> ! {
         //graphics_buffer.draw_circle((500,500), 100, Color{r: 255, g: 0, b: 0});
         //graphics_buffer.draw_rectangle(600, 600, 100, 100, Color{r: 0, g: 0, b: 255});
         graphics_buffer.clear_screen();
-        graphics_buffer.draw_string(10, 10, "Hello world!", Color { b: 0x99, g: 0x99, r: 0x99 });
+        graphics_buffer.draw_string(10, 10, "Hello world!", Color { b: 0x99, g: 0x99, r: 0x99 }, 2);
     }
 
     crate::kmain()
