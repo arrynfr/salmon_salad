@@ -1,73 +1,71 @@
 .section .text._start
 .global _start
-.equ PSCI_0_2_FN64_CPU_ON, 0xc4000003
+.global _per_core_setup
 _start:
-.stack_init:
-	adrp x1, _stack_end
-	add x1, x1, 4
-	mrs x2, MPIDR_EL1
-	and x2, x2, #0xFF
-	ldr x3, =_stack_size
-	mul x3, x2, x3
-	sub x1, x1, x3
-	mov sp, x1
+	mrs x0, MPIDR_EL1
+	and x0, x0, #0xFF
+	cmp x0, xzr
+	bne _per_core_setup
 
-	cmp x2, 0
-	bne core_say_hello
-	
+	mrs x19, CurrentEL
+	lsr x19, x19, #2
+	cmp x19, 1
+	beq _per_core_setup
+
+	adr x0, err_el_not_supported
+	bl putstr
+	add w0, w19, 0x30
+	bl putchar
+	adr x0, new_line
+	bl putstr
+	b .kend
+
+_per_core_setup:
 	#Enable floating point bits FPEN
 	mrs x1, cpacr_el1
 	mov x0, #(3 << 20)
 	orr x0, x1, x0
 	msr cpacr_el1, x0
-	
+
 	#Set up EL1 exception vector table (exception.s)
 	adr x0, vector_table_el1
 	msr vbar_el1, x0
 
-	isb
-	b _start_rust
+	adrp x1, _stack_end
+	add x1, x1, 4
+	mrs x0, MPIDR_EL1
+	and x0, x0, #0xFF
+	ldr x3, =_stack_size
+	mul x3, x0, x3
+	sub x1, x1, x3
+	mov sp, x1
 
-.core_fail:
-	adr x1, bringup_failed
-	bl putstr
+	isb
+	dsb sy
+	bl _start_rust // Core passed as func arg in x0
 
 .kend:
+	dsb sy
 	wfi
-	b		_start
+	b		.kend
 
 putchar:
-	mov x0, 0x09000000
-	strb w2, [x0]
+	ldr x9, =_serial_base
+	strb w0, [x9]
 	ret
 
 putstr:
-	mov x8, 0
-	add x8, x30, 0
+	mov x20, x30
+	mov x10, x0
 .loop:
-	ldrb w2, [x1]
+	ldrb w0, [x10]
 	bl putchar
-	add x1, x1, 1
-	cmp w2, 0
+	add x10, x10, #1
+	cmp w0, 0
 	bne .loop
-	mov x30, 0
-	add x30, x8, 0
+	mov x30, x20
 	ret
 
-core_say_hello:
-	adr x1, core_hello
-	bl putstr
-	mrs x2, MPIDR_EL1
-	and x2, x2, #0xFF
-	add x2, x2, 0x30
-	bl putchar
-	adr x1, new_line
-	bl putstr
-	b .kend
-
 .data
-hello_world:    .asciz "Hello, aarch64 world!\r\n"
-goodbye_world:  .asciz "Goodbye, aarch64 world!\r\n"
-bringup_failed: .asciz "Failed to bring up cores!\r\n"
-core_hello: 	.asciz "Booted core "
-new_line:		.asciz "\r\n"
+err_el_not_supported:	.asciz "Can only boot in EL1. Current EL: "
+new_line:				.asciz "\r\n"

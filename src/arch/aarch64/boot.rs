@@ -1,7 +1,7 @@
 use core::arch::global_asm;
 use core::arch::asm;
 use crate::driver::qemu::ramfb::*;
-use crate::driver::qemu::smp::*;
+use super::driver::qemu::smp::*;
 use crate::user::graphics::gfx::*;
 use crate::arch::aarch64::serial::serial_init;
 

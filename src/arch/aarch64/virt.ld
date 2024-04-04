@@ -1,6 +1,8 @@
 _kernel_base = 0x40080000;
-_stack_size = 0xC00000;
-_num_cores = 2;
+_stack_size = 0x200000;
+_num_cores = 4;
+_ram_size = 2048*1024*1024;
+_serial_base = 0x9000000;
 ENTRY(_kernel_base)
 
 PHDRS
@@ -18,8 +20,8 @@ SECTIONS
         KEEP(*(.text._start))
         *(.text*)
     } :segment_code
-    .rodata : ALIGN(8) { *(.rodata*) } :segment_code
-    .data : { *(.data*) } :segment_data
+    .rodata : ALIGN(16) { *(.rodata*) } :segment_code
+    .data : ALIGN(16) { *(.data*) } :segment_data
     .bss (NOLOAD) : ALIGN(16) {
         PROVIDE(_bss_start = .);
         KEEP(*(.sbss .sbss.*))
@@ -27,9 +29,15 @@ SECTIONS
         . = ALIGN(16);
         PROVIDE(_bss_end = .);
     } :segment_data
-    .stack (NOLOAD) :
+    .stack (NOLOAD) : ALIGN(16)
     {
+        PROVIDE(_stack_start = .);
         . += _stack_size*_num_cores;
         PROVIDE(_stack_end = .);
     } :segment_stack
+    .heap (NOLOAD) : ALIGN(16) {
+        PROVIDE(_heap_start = .);
+        . = _kernel_base+_ram_size;
+        PROVIDE(_heap_end = .);
+    }
 }
