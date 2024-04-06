@@ -14,7 +14,6 @@ pub unsafe fn init_smp() {
     
     if current_core == 0 {
         for init_core in 1..&_num_cores as *const u8 as u16 {
-            for _ in 0..1000000 {}
             // x0 is PSCI command as input and return code as output
             let mut return_code: isize = PSCI_0_2_FN64_CPU_ON; 
             asm!("hvc 0",
