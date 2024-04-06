@@ -1,43 +1,55 @@
-_kernel_base = 0x40080000;
+ENTRY(_start)
 _stack_size = 0x200000;
 _num_cores = 4;
 _ram_size = 2048*1024*1024;
 _serial_base = 0x9000000;
-ENTRY(_kernel_base)
+
+. = 0;
 
 PHDRS
 {
-    segment_stack           PT_LOAD FLAGS(6);
-    segment_code            PT_LOAD FLAGS(5);
+    segment_text            PT_LOAD FLAGS(5);
     segment_data            PT_LOAD FLAGS(6);
+    segment_rodata          PT_LOAD FLAGS(4);
 }
 
 SECTIONS
 {
-    . =  _kernel_base;
-    .text :
+    _base = .;
+    .text : ALIGN(0x4000)
     {
         KEEP(*(.text._start))
         *(.text*)
-    } :segment_code
-    .rodata : ALIGN(16) { *(.rodata*) } :segment_code
-    .data : ALIGN(16) { *(.data*) } :segment_data
-    .bss (NOLOAD) : ALIGN(16) {
-        PROVIDE(_bss_start = .);
-        KEEP(*(.sbss .sbss.*))
-        KEEP(*(.bss .bss.*))
-        . = ALIGN(16);
-        PROVIDE(_bss_end = .);
+        . = ALIGN(8);
+        *(.got.plt)
+        . = ALIGN(0x4000);
+    } :segment_text
+    .rodata : ALIGN(0x4000) { *(.rodata*) } :segment_rodata
+    .rela.dyn : {
+        _rela_start = .;
+        *(.rela.*)
+        _rela_end = .;
+        . = ALIGN(0x4000);
+    } :segment_rodata
+    .data : ALIGN(0x4000) { 
+        *(.data*)
+        . = ALIGN(8);
+        _got_start = .;
+        *(.got)
+        _got_end = .;
     } :segment_data
-    .stack (NOLOAD) : ALIGN(16)
-    {
-        PROVIDE(_stack_start = .);
-        . += _stack_size*_num_cores;
-        PROVIDE(_stack_end = .);
-    } :segment_stack
-    .heap (NOLOAD) : ALIGN(16) {
-        PROVIDE(_heap_start = .);
-        . = _kernel_base+_ram_size;
-        PROVIDE(_heap_end = .);
+    .bss (NOLOAD) : ALIGN(0x4000) {
+        _bss_start = .;
+        *(.sbss .sbss.*)
+        *(.bss .bss.*)
+        *(.dynbss)
+        *(COMMON)
+        . = ALIGN(0x4000);
+        _bss_end = .;
+    } :segment_data
+    .stack (NOLOAD) : ALIGN(0x4000) {
+        _stack_start = .;
+        . += (_stack_size*_num_cores);
+        _stack_end = .;
     }
 }
