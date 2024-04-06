@@ -4,30 +4,22 @@
 .type _start, @function
 .equ R_AARCH64_RELATIVE, 1027
 _start:
+	adrp x0, _base
+    adrp x1, _rela_start
+    add x1, x1, :lo12:_rela_start
+    adrp x2, _rela_end
+    add x2, x2, :lo12:_rela_end
+	bl _relocate_binary
+	
+	mrs x19, CurrentEL
+	lsr x19, x19, #2
+	
+_el1_entry:
 	mrs x0, MPIDR_EL1
 	and x0, x0, #0xFF
 	cmp x0, xzr
 	bne _per_core_setup
 
-	adrp x0, _base
-    mov x20, x0
-    adrp x1, _rela_start
-    add x1, x1, :lo12:_rela_start
-    adrp x2, _rela_end
-    add x2, x2, :lo12:_rela_end
-
-.relocate_binary:
-	ldp x25, x26, [x1], 0x10
-	ldr x27, [x1], 0x8
-	cmp x26, R_AARCH64_RELATIVE
-	bne .end_reloc
-	add x22, x0, x25
-	add x23, x0, x27
-	str x23, [x22]
-	cmp x1, x2
-	bne .relocate_binary
-	
-.end_reloc:
 	mrs x19, CurrentEL
 	lsr x19, x19, #2
 	cmp x19, 1
@@ -71,6 +63,29 @@ _per_core_setup:
 	wfi
 	b		.kend
 
+# in:	(x0 = base, x1 = rela_start, x2 = rela_end)
+# mod:	(x22 = binary_address, x23 = addend_address,
+# 		x25 = offset, x26 = type, x27 = addend)
+.global _relocate_binary
+.type _relocate_binary, @function
+_relocate_binary:
+	ldp x25, x26, [x1], 0x10
+	ldr x27, [x1], 0x8
+
+	cmp x26, R_AARCH64_RELATIVE
+	bne .end_reloc
+
+	add x22, x0, x25
+	add x23, x0, x27
+	str x23, [x22]
+	cmp x1, x2
+	bne _relocate_binary
+
+.end_reloc:
+	ret
+
+# in:	(w0 = character)
+# mod:	(x9 = UART_DATA_REGISTER)
 .global _putchar
 .type _putchar, @function
 _putchar:
@@ -78,6 +93,8 @@ _putchar:
 	strb w0, [x9]
 	ret
 
+# in:	(x0 = string_addr)
+# mod:	(x20 = LR, x10 = string_addr, x0 = char)
 .global _putstr
 .type _putstr, @function
 _putstr:
@@ -86,9 +103,11 @@ _putstr:
 .loop:
 	ldrb w0, [x10]
 	bl _putchar
+
 	add x10, x10, #1
 	cmp w0, 0
 	bne .loop
+
 	mov x30, x20
 	ret
 
