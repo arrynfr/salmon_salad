@@ -79,7 +79,7 @@ pub fn sh_main() {
                     b'\r' => {
                         println!();
                         // Process the user command
-                        input_cmd[string_size] = ascii::Char::from_u8('\n' as u8).unwrap();
+                        input_cmd[string_size] = ascii::Char::from_u8(b'\n').unwrap();
                         match process_command(&mut input_cmd) {
                             Ok(()) => {},
                             Err(ShellError::UserExit) => { panic!("User exited the shell!"); },
