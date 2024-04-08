@@ -12,6 +12,7 @@ mod acpi;
 mod arch;
 mod config;
 mod driver;
+mod fdt;
 use core::panic::PanicInfo;
 mod user;
 
