@@ -51,22 +51,27 @@ extern "efiapi" fn efi_main(_handle: u64, table: *mut EfiSystemTable) {
             let fs = 2;
             let con_w = ((fb_x/8)/fs) as usize;
             let con_h =  ((fb_y/8)/fs) as usize;
+            let bpp = 4;
             
-            let graphicsBuffer = GraphicsBuffer::new(fb, fb_size, ppl, fb_x, fb_y, PixelFormat::APL, 4);
-            let consoleBuffer = GraphicsBuffer::new(fb, fb_size, ppl, fb_x, fb_y, PixelFormat::APL, 4);
+            let graphicsBuffer = GraphicsBuffer::new(fb, fb_size, ppl*bpp as u32, fb_x, fb_y, PixelFormat::BGRX8, bpp);
+            let consoleBuffer = GraphicsBuffer::new(fb, fb_size, ppl*bpp as u32, fb_x, fb_y, PixelFormat::BGRX8, bpp);
             let mut console = GfxConsole::new(con_w, con_h, fs as usize, consoleBuffer);
     
             console.clear();
             
-            //graphicsBuffer.draw_rectangle(0, 0, graphicsBuffer.horizontal_resolution as isize, graphicsBuffer.vertical_resolution as isize, Color{r: 128, g: 128, b: 128});
+            graphicsBuffer.draw_rectangle(0, 0, graphicsBuffer.horizontal_resolution as isize, graphicsBuffer.vertical_resolution as isize, Color{r: 128, g: 128, b: 128});
             graphicsBuffer.draw_line(0, 0, graphicsBuffer.horizontal_resolution as isize, graphicsBuffer.vertical_resolution as isize, Color{r: 255, g: 255, b: 255});
             graphicsBuffer.draw_circle((100,400), 100, Color{r: 0x3ff, g: 0, b: 0});
             graphicsBuffer.draw_circle((200,400), 100, Color{r: 0, g: 0x3ff, b: 0});
             graphicsBuffer.draw_circle((300,400), 100, Color{r: 0, g: 0, b: 0x3ff});
             console.write(format!("Current mode: {x:?} Max mode: {max_mode:?}\n").as_str());
             console.write(format!("{:#x?}\n", *(*(*ptr).mode).info).as_str());
+            if x == 16 {
+                println!("{:#x?}", *(*ptr).mode);
+                println!("{:#x?}\n", *(*(*ptr).mode).info);
+            }
             //console.write(format!("{:#?}", console).as_str());
-            for _ in 0..20000000 {}
+            for _ in 0..10000000 {}
         }
     }
     loop {}
