@@ -61,13 +61,11 @@ unsafe fn qemu_dma_transfer (control: u32, len: u32, addr: u64) {
 pub fn setup_ramfb(fb_addr: *mut u8, width: u32, height: u32) {
     let mut num_entries: u32 = 0xFFFFFFFF;
     unsafe {
-        qemu_dma_transfer((0x19 << 16| QEMU_CFG_DMA_CTL_SELECT | QEMU_CFG_DMA_CTL_READ) as u32,
+        qemu_dma_transfer(0x19 << 16| QEMU_CFG_DMA_CTL_SELECT | QEMU_CFG_DMA_CTL_READ,
                         4, addr_of!(num_entries) as u64);
     }
 
     num_entries = num_entries.to_be();
-
-    println!("Found qemu entries: {num_entries}");
 
     let ramfb = FWCfgFile {
         size: 0,
@@ -88,18 +86,18 @@ pub fn setup_ramfb(fb_addr: *mut u8, width: u32, height: u32) {
         }
     }
 
-    println!("{:#x?}",ramfb.select.to_be());
+    //println!("{:#x?}",ramfb.select.to_be());
     let pixel_format = ('R' as u32) | (('G' as u32) << 8) | 
     (('2' as u32) << 16) | (('4' as u32) << 24);
         
-    println!("Placing fb at: {fb_addr:#x?}");
+    //println!("Placing fb at: {fb_addr:#x?}");
     let bpp: i32 = 3;
-    let mut ramfb_cfg = RamFBCfg {
+    let ramfb_cfg = RamFBCfg {
         addr: (fb_addr as u64).to_be(),
         fmt: (pixel_format).to_be(),
-        flags: (0 as u32).to_be(),
-        w: (width as u32).to_be(),
-        h: (height as u32).to_be(),
+        flags: 0_u32.to_be(),
+        w: width.to_be(),
+        h: height.to_be(),
         st: (width*bpp as u32).to_be()
     };
 
