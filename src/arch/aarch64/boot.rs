@@ -92,15 +92,14 @@ extern "C" {
 pub extern fn _start_rust(current_core: u64) -> ! {
     if current_core != 0 {
         loop {
-            print!("{current_core}\r\n");
+            println!("Booted core: {current_core}");
             wait_for_interrupt();
         }
     }
-    
-    /*unsafe {
-        serial_init(0x09000000);
-    }*/
-    //init_mmu();
+
+    serial_init(0x0900_0000 as *mut u8);
+    println!("Serial successfully initialized!");
+
     unsafe {
         init_smp();
     }
