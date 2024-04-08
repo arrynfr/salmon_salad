@@ -15,5 +15,9 @@ panic = "abort"
 
 [features]
 uefi = []
+qemu = []
+apl  = []
+rpi3 = []
+rpi4 = []
 
 [dependencies]
