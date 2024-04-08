@@ -8,9 +8,8 @@ extern "C" {
 }
 
 pub unsafe fn init_smp() {
-    let mut current_processor: u8;
-    asm!("mrs x2, MPIDR_EL1", out("x2") current_processor);
-    let current_core = current_processor & 0xFF;
+    let current_core: u8;
+    asm!("mrs x2, MPIDR_EL1", out("x2") current_core);
     
     if current_core == 0 {
         for init_core in 1..&_num_cores as *const u8 as u16 {
