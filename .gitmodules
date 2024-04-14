@@ -1,0 +1,3 @@
+[submodule "src/shared/fdt_parse"]
+	path = src/shared/fdt_parse
+	url = https://github.com/arrynfr/fdt_parse

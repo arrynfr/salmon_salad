@@ -1,5 +1,5 @@
 ENTRY(_start)
-_stack_size = 0x200000;
+_stack_size = 2*1024*1024;
 _num_cores = 4;
 _ram_size = 2048*1024*1024;
 _serial_base = 0x9000000;

@@ -1,5 +1,7 @@
-use crate::{arch, print};
-use core::{ascii, ptr::write_volatile};
+use crate::{arch, print, KERNEL_STRUCT};
+use core::{ascii, fmt::Write, ptr::{self, write_volatile}, sync::atomic::Ordering};
+
+use super::graphics::console::GfxConsole;
 
 const HELP_TEXT: &str = "arsh shell
 copyright 2023 arrynfr
@@ -14,13 +16,20 @@ enum ShellError {
     UnknownCommand,
     ParsingError,
     UserExit,
+    InvalidPtr
 }
 
 // Function to write a value to a memory address
-fn write_mem(offset: usize, value: usize) -> Result<(), ShellError> {
+fn write_mem64(offset: usize, value: usize) -> Result<(), ShellError> {
     println!("Writing {} to {:?}", value, offset);
-    unsafe { write_volatile(offset as *mut usize, value) }
-    Ok(())
+    if offset == 0 {
+        Err(ShellError::InvalidPtr)
+    } else if offset % 8 != 0 {
+        Err(ShellError::InvalidPtr)
+    } else {
+        unsafe { write_volatile(offset as *mut usize, value) }
+        Ok(())
+    }
 }
 
 // Function to process user commands
@@ -46,8 +55,50 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
                 };
             }
 
-            write_mem(args[0], args[1])?;
+            write_mem64(args[0], args[1])?;
             Ok(())
+        }
+        "clear" => {
+            let ks = KERNEL_STRUCT.load(Ordering::SeqCst);
+            if ks != ptr::null_mut() {
+                GfxConsole::_aquire();
+                unsafe {
+                    match &mut (*ks).console {
+                        Some(c) => {c.clear()}
+                        None => {}
+                    }
+                }
+                GfxConsole::_release();
+                Ok(())
+            } else { panic!("Kernel struct is null!"); }
+        }
+        "fsup" => {
+            let ks = KERNEL_STRUCT.load(Ordering::SeqCst);
+            if ks != ptr::null_mut() {
+                GfxConsole::_aquire();
+                unsafe {
+                    match &mut (*ks).console {
+                        Some(c) => {c.set_font_scale(c._get_font_scale()+1)}
+                        None => {}
+                    }
+                }
+                GfxConsole::_release();
+            }
+                Ok(())
+        }
+        "fsdown" => {
+            let ks = KERNEL_STRUCT.load(Ordering::SeqCst);
+            if ks != ptr::null_mut() {
+                GfxConsole::_aquire();
+                unsafe {
+                    match &mut (*ks).console {
+                        Some(c) => {c.set_font_scale(c._get_font_scale()-1)}
+                        None => {}
+                    }
+                }
+                GfxConsole::_release();
+            }
+                Ok(())
         }
         "exit" => Err(ShellError::UserExit),
         _ => Err(ShellError::UnknownCommand),
@@ -137,6 +188,15 @@ pub fn sh_main() {
                             }
                         }
                     }
+                   0x03 => {
+                        println!();
+                        
+                        // Reset the input buffer
+                        input_cmd.iter_mut().for_each(|x| *x = ascii::Char::Null);
+                        input_index = 0;
+                        string_size = 0;
+                        print!("> ");
+                   } 
                     _ => {}
                 }
             }

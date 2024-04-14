@@ -152,13 +152,13 @@ impl GraphicsBuffer {
         }
     }
 
-    pub unsafe fn draw_character(&self, x: isize, y: isize, ch: char, color: Color, font_size: isize) {
+    pub unsafe fn draw_character(&self, x: isize, y: isize, ch: char, color: Color, font_scale: isize) {
         let font_char = FONT[ch as usize];
         for row in 0..8 {
             let font_char_row = font_char[row as usize];
             for px in 0..8 {
                 if font_char_row & (1 << px) != 0 {
-                    self.draw_rectangle(x+px*font_size, y+row*font_size, font_size, font_size, color);
+                    self.draw_rectangle(x+px*font_scale, y+row*font_scale, font_scale, font_scale, color);
                 }
             }
         }

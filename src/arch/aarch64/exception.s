@@ -25,6 +25,9 @@ b curr_el_sp0_serror
 curr_el_spx_sync:        // The exception handler for a synchrous 
                          // exception from the current EL using the
                          // current SP.
+mrs x0, ESR_EL1
+mrs x1, FAR_EL1
+mrs x2, ELR_EL1
 b curr_el_spx_sync
 
 .balign 0x80

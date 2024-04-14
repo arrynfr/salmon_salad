@@ -21,3 +21,12 @@ rpi3 = []
 rpi4 = []
 
 [dependencies]
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+# fdt_parse = { git = "https://github.com/arrynfr/fdt_parse.git" }
+fdt_parse = { path = "src/shared/fdt_parse"}
+
+[target.'cfg(target_arch = "riscv64")'.dependencies]
+# fdt_parse = { git = "https://github.com/arrynfr/fdt_parse.git" }
