@@ -20,3 +20,7 @@ pub fn wait_for_interrupt() {
         asm!("hlt");
     }
 }
+
+pub fn is_boot_core() -> bool {
+    true
+}

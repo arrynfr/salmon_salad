@@ -55,7 +55,7 @@ extern "efiapi" fn efi_main(_handle: u64, table: *mut EfiSystemTable) {
             
             let graphicsBuffer = GraphicsBuffer::new(fb, fb_size, ppl*bpp as u32, fb_x, fb_y, PixelFormat::BGRX8, bpp);
             let consoleBuffer = GraphicsBuffer::new(fb, fb_size, ppl*bpp as u32, fb_x, fb_y, PixelFormat::BGRX8, bpp);
-            let mut console = GfxConsole::new(con_w, con_h, fs as usize, consoleBuffer);
+            let mut console = GfxConsole::new(fs, &consoleBuffer);
     
             console.clear();
             

@@ -1,11 +1,10 @@
 use core::{fmt::{Result, Write}, ptr, sync::atomic::{AtomicBool, Ordering}};
-
-#[cfg(not(feature = "uefi"))]
+use crate::{user::graphics::console::GfxConsole, KERNEL_STRUCT};
 use crate::arch;
 
 #[cfg(feature = "uefi")]
 use crate::efi;
-use crate::{user::graphics::console::GfxConsole, KERNEL_STRUCT};
+
 
 static PRINT_LOCK: AtomicBool = AtomicBool::new(false);
 static DBG_LOCK: AtomicBool = AtomicBool::new(false);

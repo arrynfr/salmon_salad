@@ -14,8 +14,7 @@ mod driver;
 use core::{fmt::Write, panic::PanicInfo, ptr::{self, addr_of}, sync::atomic::AtomicPtr};
 
 use user::graphics::gfx::GraphicsBuffer;
-
-use crate::{arch::aarch64::platform::delay_s, user::graphics::console::GfxConsole};
+use crate::user::graphics::console::GfxConsole;
 mod user;
 mod kernel;
 
