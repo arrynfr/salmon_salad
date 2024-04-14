@@ -10,3 +10,15 @@ pub fn wait_for_interrupt() {
         asm!("wfi");
     }
 }
+
+pub fn get_current_core() -> usize {
+    let hartid: usize;
+    unsafe {
+        asm!("csrr a0, mhartid", out("a0") hartid);
+    }
+    hartid
+}
+
+pub fn is_boot_core() -> bool {
+    get_current_core() == 0
+}

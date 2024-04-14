@@ -10,7 +10,6 @@ const _UARTCR_UART_ENABLE: u8 = 1 << 0;
 /// Address of the serial port
 static SERIAL_BASE:AtomicUsize = AtomicUsize::new(0);
 
-
 /// Assign the address of the serial port
 pub fn serial_init(serial_base: *mut u8) {
     SERIAL_BASE.compare_exchange(0, serial_base as usize,
@@ -24,15 +23,12 @@ pub fn serial_init(serial_base: *mut u8) {
 /// address is null. 
 pub fn serial_getchar() -> Option<u8> {
     let serial_base = SERIAL_BASE.load(core::sync::atomic::Ordering::Relaxed) as *mut u8;
-    match serial_base != 0 as *mut u8 {
-        true => {
-            unsafe {
-                if serial_base.add(UARTFR).read_volatile() & 1 << 4 == 0 {
-                    return Some(serial_base.add(0).read_volatile())
-                }
+    if serial_base != 0 as *mut u8 {
+        unsafe {
+            if serial_base.add(UARTFR).read_volatile() & 1 << 4 == 0 {
+                return Some(serial_base.add(0).read_volatile())
             }
         }
-        _ => {}
     }
     None
 }

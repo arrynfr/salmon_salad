@@ -137,6 +137,7 @@ fn setup_qemu() -> KernelStruct<'static> {
     let mut k_struct = KernelStruct::default();
     k_struct.serial_addr = Some(0x0900_0000 as *mut u8);
     serial_init(k_struct.serial_addr.unwrap());
+    println!("Serial init succesful");
     
     let fb_addr = unsafe {&_stack_end} as *const u8 as *mut u8;
     let bpp = 3;

@@ -2,6 +2,9 @@ use core::arch::global_asm;
 use crate::arch::riscv64::serial::serial_init;
 use crate::driver::qemu::ramfb::setup_ramfb;
 use crate::user::graphics::gfx::*;
+use crate::{KernelStruct, KERNEL_STRUCT};
+use super::platform::*;
+use core::ptr;
 
 global_asm!(include_str!("boot.s"));
 global_asm!(include_str!("trap.s"));
@@ -10,34 +13,34 @@ extern "C" {
     static _stack_end: u8;
 }
 
-#[no_mangle]
-pub extern fn _start_rust() -> ! {
-    unsafe {
-        serial_init(0x10000000);
-    }
+pub fn setup_qemu() -> KernelStruct<'static> {
+    let mut k_struct = KernelStruct::default();
+    k_struct.serial_addr = Some(0x1000_0000 as *mut u8);
+    serial_init(k_struct.serial_addr.unwrap());
+    println!("Serial init succesful");
 
     let bpp = 3;
     let width = 1280;
     let height = 720;
-    let fb_addr;
-    unsafe {
-        fb_addr = &_stack_end as *const u8 as *mut u8;
-    }
+    let fb_addr = unsafe { &_stack_end as *const u8 as *mut u8 };
     let stride = width*bpp;
     setup_ramfb(fb_addr, width, height);
+
     let graphics_buffer =   GraphicsBuffer::new(fb_addr, (stride*height) as usize, 
-                                            stride as u32, width, height, PixelFormat::BGR8, bpp as usize);
+    stride, width, height, PixelFormat::BGR8, bpp as usize);
+    k_struct.framebuffer = Some(graphics_buffer);
 
-    unsafe {
-        //graphics_buffer.draw_circle((100,100), 100, Color { b: 255, g: 0, r: 0 });
-        //graphics_buffer.draw_rectangle(0, 0, graphics_buffer.horizontal_resolution as isize, graphics_buffer.vertical_resolution as isize, Color{r: 128, g: 128, b: 128});
+    k_struct
+}
 
-        //graphics_buffer.draw_line(0, 0, graphics_buffer.horizontal_resolution as isize, graphics_buffer.vertical_resolution as isize, Color{r: 255, g: 255, b: 255});
-        //graphics_buffer.draw_circle((500,500), 100, Color{r: 255, g: 0, b: 0});
-        //graphics_buffer.draw_rectangle(600, 600, 100, 100, Color{r: 0, g: 0, b: 255});
-        graphics_buffer.clear_screen();
-        graphics_buffer.draw_string(10, 10, "Hello world!", Color { b: 0x99, g: 0x99, r: 0x99 }, 2);
+#[no_mangle]
+pub extern fn _start_rust() -> ! {
+    if is_boot_core() {
+        let ks = setup_qemu();
+        crate::kmain(Some(ks));
+    } else {
+        while KERNEL_STRUCT.load(core::sync::atomic::Ordering::SeqCst) == ptr::null_mut() {};
+        //dbg!("Booting on core: {current_core}\r\n");
+        crate::kmain(None);
     }
-
-    crate::kmain()
 }

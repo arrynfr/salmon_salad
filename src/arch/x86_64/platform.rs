@@ -22,5 +22,5 @@ pub fn wait_for_interrupt() {
 }
 
 pub fn is_boot_core() -> bool {
-    true
+    unimplemented!("is_boot_core()");
 }

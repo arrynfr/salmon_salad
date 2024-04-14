@@ -189,7 +189,7 @@ pub fn sh_main() {
                         }
                     }
                    0x03 => {
-                        println!();
+                        println!("^C");
                         
                         // Reset the input buffer
                         input_cmd.iter_mut().for_each(|x| *x = ascii::Char::Null);
