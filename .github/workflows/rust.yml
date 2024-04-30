@@ -16,5 +16,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: 'true'
     - name: Build
       run: cargo build --target aarch64-unknown-none --verbose
