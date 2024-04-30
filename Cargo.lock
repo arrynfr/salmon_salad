@@ -7,8 +7,13 @@ name = "fdt_parse"
 version = "0.1.0"
 
 [[package]]
+name = "ppm_parse"
+version = "0.1.0"
+
+[[package]]
 name = "salmon_salad"
 version = "0.1.0"
 dependencies = [
  "fdt_parse",
+ "ppm_parse",
 ]
