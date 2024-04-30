@@ -22,6 +22,8 @@ SECTIONS
         *(.text*)
         . = ALIGN(8);
         *(.got.plt)
+        _user_start = .;
+        *(.user*)
         . = ALIGN(0x4000);
     } :segment_text
     .rodata : ALIGN(0x4000) { *(.rodata*) } :segment_rodata
@@ -51,5 +53,7 @@ SECTIONS
         _stack_start = .;
         . += (_stack_size*_num_cores);
         _stack_end = .;
+        . += (_stack_size*_num_cores);
+        _user_stack = .;
     }
 }

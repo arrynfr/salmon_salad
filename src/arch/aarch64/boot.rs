@@ -1,22 +1,15 @@
-use core::arch::global_asm;
-use core::borrow::BorrowMut;
-use core::ffi::CStr;
-use core::fmt::Write;
 use core::ptr;
-
-use fdt_parse::Fdt;
-
+use core::arch::{asm, global_asm};
+use crate::arch::aarch64::cpu;
 use crate::driver::qemu::ramfb::*;
-use crate::user::graphics::console::GfxConsole;
 use crate::{KernelStruct, KERNEL_STRUCT};
 use super::driver::qemu::smp::*;
+use super::gicv3::send_sgi;
 use super::platform::*;
 use super::serial::serial_init;
-use crate::user::graphics::gfx::{self, *};
-use crate::arch::aarch64::gicv3::init_gic;
-use super::gicv3::init_gicr;
-use super::driver::apl::watchdog::*;
-use super::driver::apl::keyboard_backlight::*;
+use crate::user::graphics::gfx::*;
+use crate::arch::aarch64::gicv3::{init_gic, per_core_init};
+use super::driver::apl::*;
 
 global_asm!(include_str!("boot.s"));
 global_asm!(include_str!("exception.s"));
@@ -118,8 +111,7 @@ fn clear_bss() {
 }
 
 fn setup_apple() -> KernelStruct<'static> {
-    Watchdog::disable();
-    AppleKeyboardBacklight::init();
+    watchdog::Watchdog::disable();
     let mut k_struct = KernelStruct::default();
     let fb_addr = 0xbe20e4000 as *mut u8;
     let bpp = 4;
@@ -129,7 +121,7 @@ fn setup_apple() -> KernelStruct<'static> {
     let graphics_buffer =   GraphicsBuffer::new(fb_addr, (stride*height) as usize, 
     stride, width, height, PixelFormat::APL, bpp as usize);
     k_struct.framebuffer = Some(graphics_buffer);
-
+    keyboard_backlight::AppleKeyboardBacklight::init();
     k_struct
 }
 
@@ -148,27 +140,43 @@ fn setup_qemu() -> KernelStruct<'static> {
     let graphics_buffer =   GraphicsBuffer::new(fb_addr, (stride*height) as usize, 
     stride, width, height, PixelFormat::BGR8, bpp as usize);
     k_struct.framebuffer = Some(graphics_buffer);
-    
+
+    /*let f = fdt_parse::Fdt::new(0x4000_0000 as *const u8).unwrap();
+    let mut x = 0;
+    while x < f.dt_struct.len() {
+        print!("{:x?}, ", f.dt_struct[x].to_be());
+        x += 1;
+    }
+    println!("{:?}", f.get_string(0xba));*/
+
     unsafe {
         init_smp();
-        //init_gic();
-        //init_gicr();
+        init_gic();
     }
 
     k_struct     
 }
 
 #[no_mangle]
-pub extern fn _start_rust(argc: u64, argv: *const *const u64) -> ! {
+pub extern fn _start_rust(_argc: u64, _argv: *const *const u64) -> ! {
     let current_core = get_current_core_el1();
     if is_boot_core() {
         clear_bss();
-        //let ks = setup_apple();
+        #[cfg(feature = "apl")]
+        let ks = setup_apple();
+        #[cfg(not(feature = "apl"))]
         let ks = setup_qemu();
+        cpu::get_cpu_features();
+        cpu::get_cpu_features2();
+        enable_timer_interrupt(2000);
+        enable_all_interrupts();
+        //send_sgi(12);
         crate::kmain(Some(ks));
     } else {
-        while KERNEL_STRUCT.load(core::sync::atomic::Ordering::SeqCst) == ptr::null_mut() {};
+        unsafe {per_core_init();}
         dbg!("Booting on core: {current_core}\r\n");
+        enable_timer_interrupt(2000);
+        enable_all_interrupts();
         crate::kmain(None);
     }
 }

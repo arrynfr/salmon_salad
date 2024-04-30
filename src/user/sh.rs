@@ -1,5 +1,5 @@
 use crate::{arch, print, KERNEL_STRUCT};
-use core::{ascii, fmt::Write, ptr::{self, write_volatile}, sync::atomic::Ordering};
+use core::{arch::asm, ascii, ptr::{self, write_volatile}, sync::atomic::Ordering};
 
 use super::graphics::console::GfxConsole;
 
@@ -16,20 +16,19 @@ enum ShellError {
     UnknownCommand,
     ParsingError,
     UserExit,
-    InvalidPtr
+    _InvalidPtr
 }
 
 // Function to write a value to a memory address
-fn write_mem64(offset: usize, value: usize) -> Result<(), ShellError> {
+fn write_mem64(offset: usize, value: u8) -> Result<(), ShellError> {
     println!("Writing {} to {:?}", value, offset);
-    if offset == 0 {
-        Err(ShellError::InvalidPtr)
-    } else if offset % 8 != 0 {
-        Err(ShellError::InvalidPtr)
-    } else {
-        unsafe { write_volatile(offset as *mut usize, value) }
-        Ok(())
-    }
+    unsafe { write_volatile(offset as *mut u8, value) }
+    Ok(())
+}
+
+extern "C" {
+    static _user_start: u8;
+    static _user_stack: u8;
 }
 
 // Function to process user commands
@@ -55,7 +54,7 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
                 };
             }
 
-            write_mem64(args[0], args[1])?;
+            write_mem64(args[0], args[1].try_into().unwrap())?;
             Ok(())
         }
         "clear" => {
@@ -99,6 +98,13 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
                 GfxConsole::_release();
             }
                 Ok(())
+        }
+        "svc" => { Ok(unsafe {asm!("svc 0x5") }) }
+        "drop" => {
+            let usr = unsafe {&_user_start} as *const u8 as *mut u8;
+            let usr_stack = unsafe {&_user_stack} as *const u8 as *mut u8;
+            arch::host::platform::drop_to_el0(usr, usr_stack);
+            Ok(())
         }
         "exit" => Err(ShellError::UserExit),
         _ => Err(ShellError::UnknownCommand),

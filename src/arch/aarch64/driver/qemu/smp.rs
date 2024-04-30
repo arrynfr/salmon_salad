@@ -14,14 +14,15 @@ pub unsafe fn init_smp() {
     if current_core == 0 {
         for init_core in 1..&_num_cores as *const u8 as u16 {
             // x0 is PSCI command as input and return code as output
-            let mut return_code: isize = PSCI_0_2_FN64_CPU_ON; 
+            let return_code: isize;
             asm!("hvc 0",
-                inout("x0") return_code,
+                inout("x0") PSCI_0_2_FN64_CPU_ON => return_code,
                 in("x1") init_core,
                 in("x2") &_per_core_setup as *const u8 as usize,
-                in("x3") 0
+                in("x3") 0,
+                options(nostack, nomem)
             );
-            if return_code != 0 {println!("Failed to initialize core {init_core} -> {return_code}");}
+            if return_code != 0 { println!("Failed to initialize core {init_core} -> {return_code}"); }
         }
     }
 }

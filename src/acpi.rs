@@ -1,6 +1,6 @@
 #[derive(Debug)]
 #[repr(C, packed)]
-pub struct Rsdp {
+pub struct _Rsdp {
 	pub signature: [u8; 8],
 	pub checksum: u8,
 	pub oemid: [u8; 6],

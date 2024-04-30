@@ -81,12 +81,15 @@ impl DbgWriter {
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {
+        let irbits = crate::arch::host::platform::get_interrupt_mask();
+        crate::arch::host::platform::disable_all_interrupts();
         <$crate::print::StringWriter>::aquire_lock();
         let _ = <$crate::print::StringWriter as core::fmt::Write>::write_fmt(
             &mut $crate::print::StringWriter,
             format_args!($($arg)*));
         <$crate::print::StringWriter>::release_lock();
         $crate::dbg!("{}", format_args!($($arg)*));
+        crate::arch::host::platform::set_interrupt_mask(irbits);
     }
 }
 
@@ -100,6 +103,10 @@ macro_rules! println {
     }
 }
 
+/// For printing to serial console only.
+/// This might later be replaced with a kernel
+/// ring buffer akin to dmesg, when dynamic
+/// allocations are working.
 #[macro_export]
 macro_rules! dbg {
     ($($arg:tt)*) => {

@@ -4,6 +4,27 @@
 .type _start, @function
 .equ R_AARCH64_RELATIVE, 1027
 _start:
+    mrs x19, ID_AA64ISAR0_EL1
+    mrs x19, ID_AA64ISAR1_EL1
+    mrs x19, ID_AA64ISAR2_EL1
+    mrs x19, ID_AA64ISAR3_EL1
+    mrs x19, ID_ISAR5_EL1
+    
+    mrs x19, ID_AA64MMFR0_EL1
+    mrs x19, ID_AA64MMFR1_EL1
+    mrs x19, ID_AA64MMFR2_EL1
+    mrs x19, ID_AA64MMFR3_EL1
+    mrs x19, ID_AA64MMFR4_EL1
+    mrs x19, ID_MMFR4_EL1
+    mrs x19, ID_MMFR5_EL1
+    
+    mrs x19, ID_AA64PFR0_EL1
+    mrs x19, ID_AA64PFR1_EL1
+    mrs x19, ID_AA64PFR2_EL1
+    
+    mrs x19, ID_AA64DFR0_EL1
+    mrs x19, ID_DFR0_EL1
+
     mov x14, x0
     mov x15, x1
     adrp x0, _base
@@ -25,32 +46,79 @@ _start:
     bl _putstr
     b .kend
 
+# If we wanna use EL2 later on we need to
+# set up the stack for EL2 and configure
+# it appropriately. Currently it's only
+# setting up EL1 access certain functions
+# and then drops us down to EL1.
+# Since we disable HVC instructions we can
+# never return to EL2 for now.
 _el2_entry:
     # Enable access to timer registers in EL1
     mrs     x0, cnthctl_el2
     orr     x0, x0, #3
     msr     cnthctl_el2, x0     // allow EL1 system counter access
     msr     cntvoff_el2, xzr	// no virtual offset
-    mov     x0, #(1 << 31)	// AArch64
-    orr     x0, x0, #(1 << 1)	// SWIO
-    msr     hcr_el2, x0
-    mrs     x0, hcr_el2
 
-    mrs x1, cptr_el2
-    mov x0, #(3 << 20)
+    mrs     x0, hcr_el2
+    mov     x0, #(1 << 31)	    // AArch64
+    orr     x0, x0, #(1 << 1)	// SWIO
+    bic     x0, x0, #(1 << 29)  // HCD, disable HVC instructions
+    msr     hcr_el2, x0
+    
+    mov x0, #(3 << 20) // Don't trap FP-Instructions
     orr x0, x1, x0
     msr cpacr_el1, x0
 
+    mov x0, 0b00101
+    orr x0, x0, (0b1111 << 6)
+    msr SPSR_EL2, x0
+
+    adr x0, vector_table_el1
+    msr vbar_el2, x0
+
+    adr x0, _el1_entry
+    msr ELR_EL2, x0
+
+    isb
     b _el1_entry
+    #eret
+    
     # If we get here something went wrong
     wfi
-    b _el2_entry
+    b .
 
-# We don't run in EL3
+# We don't run in EL3 so we do not
+# set up anything up there.
+# That means we do not do anything useful in EL3
+# and just drop down to EL2
 _el3_entry:
-    b _el1_entry
+    msr SCTLR_EL2, xzr
+    msr HCR_EL2, xzr
+
+    mrs x0, SCR_EL3
+    orr x0, x0, #(1 << 10) // AArch64 and 32 controlled by EL2
+    orr x0, x0, #(1 << 0)  // EL1 and EL0 are non secure
+    msr SCR_EL3, x0
+    
+    mov x0, xzr
+    
+    // Mask interrupts
+    orr x0, x0, (0b1111 << 6)
+    
+    // Set the target EL2
+    orr x0, x0, #0b0001
+    orr x0, x0, #0b1000
+    msr SPSR_EL3, x0
+
+    adr x0, _el2_entry
+    msr ELR_EL3, x0
+
+    isb
+    eret
+
     wfi
-    b _el3_entry
+    b .
 
 _el1_entry:
     mrs x0, MPIDR_EL1
@@ -59,16 +127,6 @@ _el1_entry:
     bne _per_core_setup
 
 _per_core_setup:
-    #Enable floating point bits FPEN
-    mrs x1, cpacr_el1
-    mov x0, #(3 << 20)
-    orr x0, x1, x0
-    msr cpacr_el1, x0
-
-    #Set up EL1 exception vector table (exception.s)
-    adr x0, vector_table_el1
-    msr vbar_el1, x0
-
     #Set up per core EL1 stack
     adrp x1, _stack_end
     add x1, x1, #4
@@ -78,6 +136,16 @@ _per_core_setup:
     mul x3, x0, x3
     sub x1, x1, x3
     mov sp, x1
+
+    #Set up EL1 exception vector table (exception.s)
+    adr x0, vector_table_el1
+    msr vbar_el1, x0
+
+    #Enable floating point bits FPEN
+    mrs x1, cpacr_el1
+    mov x0, #(3 << 20)
+    orr x0, x1, x0
+    msr cpacr_el1, x0
 
     mov x0, x14
     mov x1, x15
@@ -145,3 +213,6 @@ _putstr:
 err_el_not_supported:	.asciz "Can only boot in EL1. Current EL: "
 err_unknown_el:			.asciz "Cannot boot in unknown EL! Halting..."
 new_line:				.asciz "\r\n"
+
+.section .user
+.incbin "./test.bin"
