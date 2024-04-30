@@ -126,7 +126,7 @@ pub fn sh_main() {
     print!("> ");
 
     loop {
-        if let Some(c) = arch::host::serial::serial_getchar() {
+        if let Some(c) = arch::host::driver::serial::serial_getchar() {
             if let Some(ca) = ascii::Char::from_u8(c) {
                 if !c.is_ascii_control() {
                     print!("{}", ca);
@@ -171,9 +171,9 @@ pub fn sh_main() {
                     }
                     0x1b => {
                         // Handle escape sequences
-                        if let Some(d) = arch::host::serial::serial_getchar() {
+                        if let Some(d) = arch::host::driver::serial::serial_getchar() {
                             if d == b'[' {
-                                if let Some(f) = arch::host::serial::serial_getchar() {
+                                if let Some(f) = arch::host::driver::serial::serial_getchar() {
                                     match f {
                                         b'A' => {} // Up arrow
                                         b'B' => {} // Down arrow

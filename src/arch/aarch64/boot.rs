@@ -4,11 +4,10 @@ use crate::arch::aarch64::cpu;
 use crate::driver::qemu::ramfb::*;
 use crate::{KernelStruct, KERNEL_STRUCT};
 use super::driver::qemu::smp::*;
-use super::gicv3::send_sgi;
 use super::platform::*;
-use super::serial::serial_init;
+use super::driver::serial::serial_init;
 use crate::user::graphics::gfx::*;
-use crate::arch::aarch64::gicv3::{init_gic, per_core_init};
+use crate::arch::aarch64::driver::gicv3::{init_gic, per_core_init, send_sgi};
 use super::driver::apl::*;
 
 global_asm!(include_str!("boot.s"));
@@ -150,7 +149,7 @@ fn setup_qemu() -> KernelStruct<'static> {
     println!("{:?}", f.get_string(0xba));*/
 
     unsafe {
-        init_smp();
+        //init_smp();
         init_gic();
     }
 
@@ -168,14 +167,13 @@ pub extern fn _start_rust(_argc: u64, _argv: *const *const u64) -> ! {
         let ks = setup_qemu();
         cpu::get_cpu_features();
         cpu::get_cpu_features2();
-        enable_timer_interrupt(2000);
         enable_all_interrupts();
-        //send_sgi(12);
+        enable_timer_interrupt(1000);
         crate::kmain(Some(ks));
     } else {
         unsafe {per_core_init();}
         dbg!("Booting on core: {current_core}\r\n");
-        enable_timer_interrupt(2000);
+        enable_timer_interrupt(1000);
         enable_all_interrupts();
         crate::kmain(None);
     }

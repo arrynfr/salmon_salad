@@ -7,8 +7,6 @@
 //! <https://developer.arm.com/documentation/ddi0487/latest/>
 pub mod boot;
 pub mod platform;
-pub mod serial;
 pub mod driver;
-pub mod gicv3;
 pub mod cpu;
 pub mod exception;

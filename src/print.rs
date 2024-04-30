@@ -53,7 +53,7 @@ impl Write for StringWriter {
 
 impl Write for DbgWriter {
     fn write_str(&mut self, string: &str) -> Result {
-        arch::host::serial::serial_puts(string);
+        arch::host::driver::serial::serial_puts(string);
         Ok(())
     }
 }

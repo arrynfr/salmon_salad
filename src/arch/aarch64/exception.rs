@@ -1,5 +1,5 @@
 use core::arch::asm;
-use super::{gicv3, platform::*};
+use super::{driver::gicv3, platform::*};
 
 const EC_UNK:   u8 = 0b00_00_00;
 const _EC_WF:    u8 = 0b00_00_01;
@@ -138,5 +138,5 @@ fn irq(frame: &mut ExceptionFrame) {
 }
 
 fn handle_timer_irq() {
-    enable_timer_interrupt(2000);
+    enable_timer_interrupt(500);
 }
