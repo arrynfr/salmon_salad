@@ -17,6 +17,12 @@ pub struct GfxConsole<'a> {
     gfx_buffer: &'a GraphicsBuffer,
 }
 
+impl<'a> Drop for GfxConsole<'a> {
+    fn drop(&mut self) {
+        self.clear();
+    }
+}
+
 impl<'a> GfxConsole<'a> {
     pub fn new(fs: u32, gb: &'a GraphicsBuffer) -> Self {
         let mut c = GfxConsole {
