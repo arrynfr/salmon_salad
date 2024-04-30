@@ -119,11 +119,9 @@ pub fn kmain(kernel_struct: Option<KernelStruct>) -> ! {
             Ok(_) => { println!("Text mode started!"); },
             Err(e) => { println!("Couldn't start textmode: {:?}", e); }
         }
-        println!("Booting in EL: {}", arch::host::platform::get_current_el());
         user::sh::sh_main();
     } else {
         while KERNEL_STRUCT.load(core::sync::atomic::Ordering::SeqCst) == ptr::null_mut() {};
-        arch::host::gicv3::send_sgi(13);
         dbg!("Halting core: {}\r\n", arch::host::platform::get_current_core());
         loop { halt_system() }
     }

@@ -22,3 +22,19 @@ pub fn get_current_core() -> usize {
 pub fn is_boot_core() -> bool {
     get_current_core() == 0
 }
+
+pub fn delay_s(seconds: u32) {
+    unimplemented!();
+}
+
+pub fn get_interrupt_mask() -> u64 {
+    unimplemented!();
+}
+
+pub fn disable_all_interrupts() {
+    unimplemented!();
+}
+
+pub fn set_interrupt_mask(imask: u64) {
+    unimplemented!();
+}

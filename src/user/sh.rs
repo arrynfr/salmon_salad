@@ -99,11 +99,16 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
             }
                 Ok(())
         }
-        "svc" => { Ok(unsafe {asm!("svc 0x5") }) }
+        "svc" => {
+            #[cfg(target_arch = "aarch64")]
+            unsafe {asm!("svc 0x5") }
+            Ok(()) 
+        }
         "drop" => {
-            let usr = unsafe {&_user_start} as *const u8 as *mut u8;
-            let usr_stack = unsafe {&_user_stack} as *const u8 as *mut u8;
-            arch::host::platform::drop_to_el0(usr, usr_stack);
+            #[cfg(target_arch = "aarch64")]      
+            arch::host::platform::drop_to_el0(
+                unsafe {&_user_start} as *const u8 as *mut u8,
+                unsafe {&_user_stack} as *const u8 as *mut u8);
             Ok(())
         }
         "exit" => Err(ShellError::UserExit),
