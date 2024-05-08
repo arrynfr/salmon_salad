@@ -125,7 +125,7 @@ pub fn kmain(kernel_struct: Option<KernelStruct>) -> ! {
     } else {
         while KERNEL_STRUCT.load(core::sync::atomic::Ordering::SeqCst) == ptr::null_mut() {};
         dbg!("Halting core: {}\r\n", arch::host::platform::get_current_core());
-        loop { /*halt_system()*/ }
+        loop { arch::host::platform::wait_for_interrupt(); }
     }
     panic!("End of kernel reached!\r\nSystem halted!");
 }
