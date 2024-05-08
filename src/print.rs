@@ -16,18 +16,13 @@ impl StringWriter {
         while PRINT_LOCK.compare_exchange(
             false,
             true,
-            Ordering::SeqCst,
+            Ordering::Acquire,
             Ordering::SeqCst,
         ).is_err() {}
     }
 
     pub fn release_lock() {
-        while PRINT_LOCK.compare_exchange(
-            true,
-            false,
-            Ordering::SeqCst,
-            Ordering::SeqCst,
-        ).is_err() {}
+        PRINT_LOCK.store(false, Ordering::Release);
     }
 }
 
@@ -63,18 +58,13 @@ impl DbgWriter {
         while DBG_LOCK.compare_exchange(
             false,
             true,
-            Ordering::SeqCst,
+            Ordering::Acquire,
             Ordering::SeqCst,
         ).is_err() {}
     }
 
     pub fn release_lock() {
-        while DBG_LOCK.compare_exchange(
-            true,
-            false,
-            Ordering::SeqCst,
-            Ordering::SeqCst,
-        ).is_err() {}
+        DBG_LOCK.store(false, Ordering::Release);
     }
 }
 

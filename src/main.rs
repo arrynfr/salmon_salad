@@ -27,7 +27,7 @@ static KERNEL_STRUCT: AtomicPtr<KernelStruct> = AtomicPtr::new(ptr::null_mut());
 pub struct KernelStruct<'a> {
     framebuffer: Option<GraphicsBuffer>,
     console: Option<GfxConsole<'a>>,
-    serial_addr: Option<*mut u8>,
+    serial_addr: Option<*mut u8>
 }
 
 impl Default for KernelStruct<'static> {
@@ -63,7 +63,9 @@ fn panic(info: &PanicInfo) -> ! {
             console.clear();
         }
     }*/
-    println!("panicked at {}:\r\n{}", 
+    arch::host::platform::disable_all_interrupts();
+    println!("Core {} panicked at {}:\r\n{}",
+    arch::host::platform::get_current_core(),
     info.location().unwrap(),
     info.message().unwrap());
     loop {
@@ -123,7 +125,7 @@ pub fn kmain(kernel_struct: Option<KernelStruct>) -> ! {
     } else {
         while KERNEL_STRUCT.load(core::sync::atomic::Ordering::SeqCst) == ptr::null_mut() {};
         dbg!("Halting core: {}\r\n", arch::host::platform::get_current_core());
-        loop { halt_system() }
+        loop { /*halt_system()*/ }
     }
     panic!("End of kernel reached!\r\nSystem halted!");
 }
