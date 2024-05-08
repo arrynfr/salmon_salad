@@ -1,4 +1,6 @@
 use core::arch::asm;
+use crate::panic;
+
 use super::{driver::gicv3, platform::*};
 
 const EC_UNK:   u8 = 0b00_00_00;
@@ -114,7 +116,7 @@ fn exception(frame: &mut ExceptionFrame) {
         EC_SVC => {
             let svc_number = (frame.esr & 0xFFFF) as u16;
             match svc_number {
-                0x1337 => { println!("EC_SVC from userspace: {svc_number}!"); loop {}}
+                0x1337 => { println!("EC_SVC from userspace: {svc_number}!");}
                 _ => {println!("EC_SVC exception with number {svc_number}!");}
             }
         }
@@ -134,9 +136,16 @@ fn irq(frame: &mut ExceptionFrame) {
         0x1e => { handle_timer_irq() },
         _ => { println!("Got unknown interrupt {:x?}", intid); }
     }
-    gicv3::acknowledge_interrupt(intid);
+    gicv3::GIC::acknowledge_interrupt(intid);
 }
 
 fn handle_timer_irq() {
     enable_timer_interrupt(500);
+}
+
+#[no_mangle]
+fn unhandled_exception_vector() -> ! {
+    unsafe { asm!("mrs {:x}, ICC_IAR1_EL1", out(reg) _) };
+    disable_all_interrupts();
+    panic!("Jump to unhandled exception vector!");
 }

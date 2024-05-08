@@ -7,7 +7,7 @@ use super::driver::qemu::smp::*;
 use super::platform::*;
 use super::driver::serial::serial_init;
 use crate::user::graphics::gfx::*;
-use crate::arch::aarch64::driver::gicv3::{init_gic, per_core_init, send_sgi};
+use crate::arch::aarch64::driver::gicv3::{self, *};
 use super::driver::apl::*;
 
 global_asm!(include_str!("boot.s"));
@@ -149,8 +149,14 @@ fn setup_qemu() -> KernelStruct<'static> {
     println!("{:?}", f.get_string(0xba));*/
 
     unsafe {
-        //init_smp();
-        init_gic();
+        init_smp();
+        let gic = GIC::new(gicv3::GICD_BASE, gicv3::GICR_BASE)
+                        .expect("Error initializing GICv3");
+        gic.init_gic();
+        let timer_interrupt = 0x1e;
+        gic.set_interrupt_trigger(timer_interrupt, false);
+        gic.enable_interrupt(timer_interrupt);
+        gic.set_interrupt_group(timer_interrupt, true);
     }
 
     k_struct     
@@ -171,7 +177,15 @@ pub extern fn _start_rust(_argc: u64, _argv: *const *const u64) -> ! {
         enable_timer_interrupt(1000);
         crate::kmain(Some(ks));
     } else {
-        unsafe {per_core_init();}
+        unsafe {
+            let gic = GIC::new(gicv3::GICD_BASE, gicv3::GICR_BASE)
+                            .expect("Error getting device");
+            gic.per_core_init();
+            let timer_interrupt = 0x1e;
+            gic.set_interrupt_trigger(timer_interrupt, false);
+            gic.enable_interrupt(timer_interrupt);
+            gic.set_interrupt_group(timer_interrupt, true);
+        }
         dbg!("Booting on core: {current_core}\r\n");
         enable_timer_interrupt(1000);
         enable_all_interrupts();
