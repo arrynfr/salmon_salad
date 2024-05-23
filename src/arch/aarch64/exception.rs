@@ -1,9 +1,8 @@
 use core::arch::asm;
-use crate::panic;
 
 use super::{driver::gicv3, platform::*};
 
-const EC_UNK:   u8 = 0b00_00_00;
+const EC_UNK:    u8 = 0b00_00_00;
 const _EC_WF:    u8 = 0b00_00_01;
 const _EC_FNCT:  u8 = 0b00_01_11;
 const _EC_LS64:  u8 = 0b00_10_10;
