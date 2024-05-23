@@ -160,11 +160,11 @@ fn setup_qemu() -> KernelStruct<'static> {
         gic.set_interrupt_trigger(timer_interrupt, false);
         gic.enable_interrupt(timer_interrupt);
         gic.set_interrupt_group(timer_interrupt, true);
-        for x in 32..1024 {
-            gic.enable_interrupt(x);
-            gic.set_interrupt_group(x, true);
-            gic.set_interrupt_trigger(x, true);
-        }
+        //for x in 32..1024 {
+        //    gic.enable_interrupt(x);
+        //    gic.set_interrupt_group(x, true);
+        //    gic.set_interrupt_trigger(x, true);
+        //}
     }
 
     k_struct     
