@@ -141,7 +141,7 @@ pub fn enable_all_interrupts() {
 
 #[inline(always)]
 pub fn disable_all_interrupts() {
-    // 0x7 to enable SError, IRQ, FIQ
+    // 0x7 to disable SError, IRQ, FIQ
     unsafe { asm!(  "msr DAIFSet, #0b1111",
                     "isb",
                     options(nostack, nomem))
@@ -149,6 +149,7 @@ pub fn disable_all_interrupts() {
 }
 
 pub fn set_interrupt_mask(imask: u64) {
+    assert!(imask <= 0b1111);
     unsafe { asm!(  "msr DAIF, {}",
                     "isb",
                     in(reg) imask,
