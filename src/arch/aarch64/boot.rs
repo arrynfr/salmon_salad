@@ -1,8 +1,11 @@
-use core::ptr;
+use core::f32::consts::E;
+use core::ops::{Add, Sub};
+use core::ptr::{self, addr_of_mut};
 use core::arch::{asm, global_asm};
 use crate::arch::aarch64::cpu;
+use crate::driver::e1000::e1000;
 use crate::driver::qemu::ramfb::*;
-use crate::{KernelStruct, KERNEL_STRUCT};
+use crate::{driver, KernelStruct, KERNEL_STRUCT};
 use super::driver::qemu::smp::*;
 use super::platform::*;
 use super::driver::serial::serial_init;
@@ -157,9 +160,47 @@ fn setup_qemu() -> KernelStruct<'static> {
         gic.set_interrupt_trigger(timer_interrupt, false);
         gic.enable_interrupt(timer_interrupt);
         gic.set_interrupt_group(timer_interrupt, true);
+        for x in 32..1024 {
+            gic.enable_interrupt(x);
+            gic.set_interrupt_group(x, true);
+            gic.set_interrupt_trigger(x, true);
+        }
     }
 
     k_struct     
+}
+
+fn hex_print(addr: *mut u8, lines: usize) {
+    let num_vals = lines*16;
+    unsafe {
+        println!("{0:<12}: {1:2X?}", "Offset",[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]);
+        for x in (0..num_vals).step_by(16) {
+            let mut values: [u8; 16] = [0; 16];
+            for y in 0..16 {
+                values[y] = addr.add(x+y).read_volatile();
+            }
+            println!("{0:<12p}: {1:2x?}", addr.add(x), values);
+        }
+    }
+}
+
+fn hex_print32(addr: *mut u8, lines: usize) {
+    let num_vals = lines*16;
+    unsafe {
+        println!("{0:<12}: {1:2X?}", "Offset",[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]);
+        for x in (0..num_vals).step_by(16) {
+            let mut values: [u8; 16] = [0; 16];
+            for y in (0..16).step_by(4) {
+                let val = (addr.add(x+y) as *mut u32).read_volatile().to_le() as u64;
+                values[y+0] = ((val >> 0) & 0xFF) as u8;
+                values[y+1] = ((val >> 8) & 0xFF) as u8;
+                values[y+2] = ((val >> 16) & 0xFF) as u8;
+                values[y+3] = ((val >> 32) & 0xFF) as u8;
+            }
+            println!("{0:<12p}: {1:2x?}", addr.add(x), values);
+        }
+        println!();
+    }
 }
 
 #[no_mangle]
@@ -173,8 +214,38 @@ pub extern fn _start_rust(_argc: u64, _argv: *const *const u64) -> ! {
         let ks = setup_qemu();
         cpu::get_cpu_features();
         cpu::get_cpu_features2();
-        enable_all_interrupts();
-        enable_timer_interrupt(1000);
+        //enable_all_interrupts();
+        //enable_timer_interrupt(1000);
+        let pci_s = 0x4010000000 as *mut u8;
+        let mut pci;
+        unsafe {
+            pci = pci_s.add(0 << 20 | 1 << 15 | 0 << 12);
+            hex_print(pci, 0x10);
+            let dev = driver::pci::PCIHeader::new(pci);
+            println!("{:#x?}", dev);
+        }
+        let mut pci_bus = driver::pci::PCIBus::new(pci_s);
+        pci_bus.enumerate();
+        //hex_print(0x3eff0000 as *mut u8, 0x10);
+        let mut e1000 = e1000::new(core::ptr::null_mut(), 0x0, 0x0);
+        for x in pci_bus.device_list {
+            if x.is_some() {
+                unsafe {
+                    let dev = x.unwrap();
+                    if (*dev).header.vendor_id.to_le() == 0x8086 && (*dev).header.device_id.to_le() == 0x100e {
+                        e1000 = e1000::new(dev, 0x1000_0000, 0x0);
+                    }
+                }
+            }
+        }
+        
+        
+        let io_space = 0x1000_0000 as *mut u32;
+        //hex_print32(io_space as *mut u8, 0x10);
+        e1000.init_my_e1000();
+        unsafe {
+            hex_print32(io_space.add(0) as *mut u8, 0xf);
+        }
         crate::kmain(Some(ks));
     } else {
         unsafe {
@@ -187,8 +258,8 @@ pub extern fn _start_rust(_argc: u64, _argv: *const *const u64) -> ! {
             gic.set_interrupt_group(timer_interrupt, true);
         }
         dbg!("Booting on core: {current_core}\r\n");
-        enable_timer_interrupt(1000);
-        enable_all_interrupts();
+        //enable_timer_interrupt(1000);
+        //enable_all_interrupts();
         crate::kmain(None);
     }
 }
