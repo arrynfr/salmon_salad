@@ -199,7 +199,9 @@ impl GIC {
     const RD_BASE: usize = GIC::FRAME_SIZE*0;
     const SGI_BASE: usize = GIC::FRAME_SIZE*1;
 
+    const MAX_SGI: u64 = 16;
     const MAX_PPI: u64 = 31;
+    const MAX_INTD:u64 = 1024;
     
     pub unsafe fn new(gicd_base: *mut u8, gicr_base: *mut u8) -> Result<Self, GICError> {
         if gicd_base == core::ptr::null_mut() || gicr_base == core::ptr::null_mut() {
@@ -292,7 +294,7 @@ impl GIC {
     }
 
     pub fn enable_interrupt(&self, intid: u64) {
-        assert!(intid <= 1024);
+        assert!(intid <= GIC::MAX_INTD);
         unsafe {
             if intid <= GIC::MAX_PPI {
                 addr_of_mut!((*self.gicr.sgi_base).gicr_isenabler0).write_volatile(1 << intid);
@@ -305,7 +307,7 @@ impl GIC {
     }
 
     pub fn set_interrupt_group(&self, intid: u64, group0: bool) {
-        assert!(intid <= 1024);
+        assert!(intid <= GIC::MAX_INTD);
         let group0_value = group0 as u32;
         unsafe {
             if intid <= GIC::MAX_PPI {
@@ -319,8 +321,8 @@ impl GIC {
     }
 
     pub fn set_interrupt_trigger(&self, intid: u64, edge_triggered: bool) {
-        assert!(intid <= 1024);
-        assert!(intid >= 16); //SGIs are always edge triggered
+        assert!(intid <= GIC::MAX_INTD);
+        assert!(intid >= GIC::MAX_SGI); //SGIs are always edge triggered
         let trigger = if edge_triggered == true { 0b10 } else { 0b00 };
         unsafe {
             if intid <= GIC::MAX_PPI {
