@@ -144,8 +144,11 @@ fn handle_timer_irq() {
 }
 
 #[no_mangle]
-fn unhandled_exception_vector() -> ! {
+fn unhandled_exception_vector(frame: *mut ExceptionFrame) -> ! {
     unsafe { asm!("mrs {:x}, ICC_IAR1_EL1", out(reg) _) };
     disable_all_interrupts();
-    panic!("Jump to unhandled exception vector!");
+    unsafe {
+        let ec: u8 = ((*frame).esr >> 26 & 0b111111) as u8;
+        panic!("Jump to unhandled exception vector!\r\n{:#x?}{:#b}", *frame, ec);
+    }
 }
