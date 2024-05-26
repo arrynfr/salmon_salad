@@ -242,7 +242,7 @@ pub extern fn _start_rust(_argc: u64, _argv: *const *const u64) -> ! {
         
         let io_space = 0x1000_0000 as *mut u32;
         //hex_print32(io_space as *mut u8, 0x10);
-        e1000.init_my_e1000();
+        e1000.init();
         unsafe {
             hex_print32(io_space.add(0) as *mut u8, 0xf);
         }
