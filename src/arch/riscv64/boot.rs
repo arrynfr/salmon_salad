@@ -1,5 +1,5 @@
 use core::arch::global_asm;
-use crate::arch::riscv64::serial::serial_init;
+use crate::arch::riscv64::driver::serial::serial_init;
 use crate::driver::qemu::ramfb::setup_ramfb;
 use crate::user::graphics::gfx::*;
 use crate::{KernelStruct, KERNEL_STRUCT};
