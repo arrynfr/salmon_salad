@@ -1,4 +1,6 @@
-use core::{mem, ptr::addr_of_mut};
+use core::ptr::addr_of_mut;
+
+const MAX_DEVICES: usize = 4096;
 
 #[derive(Debug)]
 #[repr(C)]
@@ -43,7 +45,7 @@ pub struct PCIDevice {
 #[derive(Debug)]
 pub struct PCIBus {
     pub configuration_space_address: *mut u8,
-    pub device_list: [Option<*mut PCIDevice>; 8192],
+    pub device_list: [Option<*mut PCIDevice>; MAX_DEVICES],
 }
 
 impl PCIHeader {
@@ -100,7 +102,7 @@ impl PCIBus {
     pub fn new(address: *mut u8) -> Self {
         PCIBus {
             configuration_space_address: address,
-            device_list: [Option::None; 8192]
+            device_list: [Option::None; MAX_DEVICES]
         }
     }
 
