@@ -81,8 +81,7 @@ impl e1000 {
         }
     }
 
-    #[no_mangle]
-    pub fn init_my_e1000(&mut self) {
+    pub fn init(&mut self) {
         unsafe {
             addr_of_mut!((*self.device).bar1).write_volatile(self.io_space as u32);
             addr_of_mut!((*self.device).bar0).write_volatile(self.memory_space as u32);
@@ -100,9 +99,10 @@ impl e1000 {
             for x in (e1000::REG_MTA..e1000::REG_MTA_END).step_by(4) {
                 self.write_reg(x, 0);
             }
-            self.write_reg(e1000::REG_IMS, e1000::IMS_LSC | e1000::IMS_RXDMT0 | e1000::IMS_RXO | e1000::IMS_RXT0);
+             // Enable interrupts
             self.init_rx();
             self.init_tx();
+            //self.enable_interrupts();
 
             let buf: [u8; 8] = [0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE];
             self.send_packet(&buf);
@@ -136,7 +136,20 @@ impl e1000 {
                                 (1 << 4) | (1 << 15) | (0 << 16));
     }
 
-    pub fn receive_packet() {
+    pub fn handle_interrupt(&mut self) {
+        self.write_reg(e1000::REG_IMS, !(e1000::IMS_LSC | e1000::IMS_RXDMT0 | e1000::IMS_RXO | e1000::IMS_RXT0));
+        let icr = self.read_reg(e1000::REG_ICR);
+
+        if icr & 0x04 != 0 {}
+        if icr & 0x10 != 0 {}
+        if icr & 0x80 != 0 {
+            self.receive_packet()
+        }
+        
+        self.write_reg(e1000::REG_IMS, e1000::IMS_LSC | e1000::IMS_RXDMT0 | e1000::IMS_RXO | e1000::IMS_RXT0);
+    }
+
+    pub fn receive_packet(&self) {
         todo!()
     }
 
@@ -169,6 +182,14 @@ impl e1000 {
             while addr_of_mut!(self.tx_descs[tail].sta_rsv).read_volatile() & 0xFF == 0 {}; 
         }
         self.tx_tail = next_tail;
+    }
+
+    pub fn enable_interrupts(&mut self) {
+        self.write_reg(e1000::REG_IMS, e1000::IMS_LSC | e1000::IMS_RXDMT0 | e1000::IMS_RXO | e1000::IMS_RXT0);
+    }
+
+    pub fn disable_interrupts(&mut self) {
+        self.write_reg(e1000::REG_IMS, 0);
     }
 
     pub fn write_reg(&mut self, reg: usize, value: u32) {
