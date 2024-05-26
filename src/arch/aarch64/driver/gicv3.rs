@@ -209,12 +209,14 @@ impl GIC {
         }
 
         let version = (*(gicd_base as *mut GICD)).gicd_pidr2 >> 4;
+        let typer = (*(gicd_base as *mut GICD)).gicd_typer & (1 << 16) != 0;
+        println!("GICD_TYPER: {typer:x?}");
         if version == 3 {
 
             //Find redistributor for the current core
             let mut gicr: Option<GICR> = None;
-            let current_core = _get_current_core();
-            for x in 0..4 { //TODO: Get num cores from device tree
+            let current_core = _get_current_core() as usize;
+            for x in 0..current_core+1 { //TODO: Get num cores from device tree
                 let gicr_typer = (*((gicr_base.add(x*GIC::FRAME_SIZE*2)) as *mut RDBase)).gicr_typer;
                 let rd_cpu_number = (gicr_typer & (0xFFFF << 8)) >> 8;
                 if rd_cpu_number == current_core as u32 {
@@ -275,6 +277,12 @@ impl GIC {
     pub unsafe fn init_gic(&self) {
             self.init_gicd();
             self.per_core_init();
+            //We only use NS group 1 interrupts so set all to group 1 
+            addr_of_mut!((*self.gicr.sgi_base).gicr_igroupr0).write_volatile(!0);
+            for x in 0..32 {
+                addr_of_mut!((*self.gicd).gicd_igroupr[x]).write_volatile(!0);
+            }
+
     }
 
     pub fn acknowledge_interrupt(intid: u64) {
@@ -306,16 +314,31 @@ impl GIC {
         }
     }
 
-    pub fn set_interrupt_group(&self, intid: u64, group0: bool) {
+    pub fn disable_interrupt(&self, intid: u64) {
         assert!(intid <= GIC::MAX_INTD);
-        let group0_value = group0 as u32;
         unsafe {
             if intid <= GIC::MAX_PPI {
-                addr_of_mut!((*self.gicr.sgi_base).gicr_igroupr0).write_volatile(group0_value << intid);
+                addr_of_mut!((*self.gicr.sgi_base).gicr_icenabler).write_volatile(1 << intid);
             } else {
                 let reg_num: usize = (intid/32) as usize;
                 let enable_bit = intid % 32;
-                addr_of_mut!((*self.gicd).gicd_igroupr[reg_num]).write_volatile(1 << enable_bit);
+                addr_of_mut!((*self.gicd).gicd_icenabler[reg_num]).write_volatile(1 << enable_bit);
+            }
+        }
+    }
+
+    pub fn set_interrupt_group(&self, intid: u64, group1: bool) {
+        assert!(intid <= GIC::MAX_INTD);
+        let group1_value = group1 as u32;
+        unsafe {
+            if intid <= GIC::MAX_PPI {
+                let irqs = addr_of_mut!((*self.gicr.sgi_base).gicr_igroupr0).read_volatile();
+                addr_of_mut!((*self.gicr.sgi_base).gicr_igroupr0).write_volatile(irqs & (group1_value << intid));
+            } else {
+                let reg_num: usize = (intid/32) as usize;
+                let enable_bit = intid % 32;
+                let irqs = addr_of_mut!((*self.gicd).gicd_igroupr[reg_num]).read_volatile();
+                addr_of_mut!((*self.gicd).gicd_igroupr[reg_num]).write_volatile(irqs & (group1_value << enable_bit));
             }
         }
     }
@@ -324,14 +347,15 @@ impl GIC {
         assert!(intid <= GIC::MAX_INTD);
         assert!(intid >= GIC::MAX_SGI); //SGIs are always edge triggered
         let trigger = if edge_triggered == true { 0b10 } else { 0b00 };
+        let enable_bit = (intid%16)*2;
         unsafe {
             if intid <= GIC::MAX_PPI {
-                let enable_bit = (intid%16)*2;
-                addr_of_mut!((*self.gicr.sgi_base).gicr_icfgr1).write_volatile(trigger << enable_bit);
+                let irqs = addr_of_mut!((*self.gicr.sgi_base).gicr_icfgr1).read_volatile();
+                addr_of_mut!((*self.gicr.sgi_base).gicr_icfgr1).write_volatile(irqs & (trigger << enable_bit));
             } else {
                 let reg_num = (intid/16) as usize;
-                let enable_bit = (intid%16)*2;
-                addr_of_mut!((*self.gicd).gicd_icfgr[reg_num]).write_volatile(trigger << enable_bit);
+                let irqs = addr_of_mut!((*self.gicd).gicd_icfgr[reg_num]).read_volatile();
+                addr_of_mut!((*self.gicd).gicd_icfgr[reg_num]).write_volatile(irqs & (trigger << enable_bit));
             }
         }
     }
