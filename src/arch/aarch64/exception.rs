@@ -32,7 +32,7 @@ const _EC_SSTPL: u8 = 0b11_00_10;
 const _EC_SSTP:  u8 = 0b11_00_11;
 const _EC_WTPTL: u8 = 0b11_01_00;
 const _EC_WTPT:  u8 = 0b11_01_01;
-const _EC_BRK:   u8 = 0b11_11_00;
+const EC_BRK:    u8 = 0b11_11_00;
 const _EC_EBEP:  u8 = 0b11_11_01;
 
 /*enum ExceptionCause {
@@ -109,8 +109,18 @@ fn exception(frame: &mut ExceptionFrame) {
     let ec: u8 = (frame.esr >> 26 & 0b111111) as u8;
     //let instruction_length: u8 = (frame.esr >> 25 & 0b1) as u8; // 0x0:16bit / 0x1:32bit
     match ec {
-        EC_UNK | EC_DABT | EC_DABTL | EC_IABT | EC_IABTL => {
+        EC_UNK => {
             panic!("{:b} exception!\r\n{:#x?}", ec, frame);
+        }
+        EC_DABT | EC_DABTL => {
+            panic!("EC_DABT exception!\r\n{:#x?}", frame);
+        }
+        EC_IABT | EC_IABTL => {
+            panic!("EC_IABT exception!\r\n{:#x?}", frame);
+        }
+        EC_BRK => {
+            println!("Software break point");
+            loop {}
         }
         EC_SVC => {
             let svc_number = (frame.esr & 0xFFFF) as u16;
@@ -133,7 +143,8 @@ fn irq(frame: &mut ExceptionFrame) {
     unsafe { asm!("mrs {:x}, ICC_IAR1_EL1", out(reg) intid) };
     match intid {
         0x1e => { handle_timer_irq() },
-        _ => { println!("Got unknown interrupt {:x?}", intid); }
+        0x24 => { handle_pci_intA() },
+        _ => { println!("Got unknown interrupt 0x{:x?}", intid); }
     }
     gicv3::GIC::acknowledge_interrupt(intid);
 }
@@ -142,10 +153,18 @@ fn handle_timer_irq() {
     enable_timer_interrupt(500);
 }
 
+fn handle_pci_intA() {
+    
+}
+
 #[no_mangle]
 fn unhandled_exception_vector(frame: *mut ExceptionFrame) -> ! {
-    unsafe { asm!("mrs {:x}, ICC_IAR1_EL1", out(reg) _) };
+    let intid: u64;
+    unsafe { asm!("mrs {:x}, ICC_IAR1_EL1", out(reg) intid) };
+    gicv3::GIC::acknowledge_interrupt(intid);
     disable_all_interrupts();
+    
+    println!("Interrupt: {intid:x?}");
     unsafe {
         let ec: u8 = ((*frame).esr >> 26 & 0b111111) as u8;
         panic!("Jump to unhandled exception vector!\r\n{:#x?}{:#b}", *frame, ec);
