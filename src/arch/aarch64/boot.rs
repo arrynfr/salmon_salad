@@ -132,6 +132,8 @@ fn setup_qemu() -> KernelStruct<'static> {
     k_struct.serial_addr = Some(0x0900_0000 as *mut u8);
     serial_init(k_struct.serial_addr.unwrap());
     println!("Serial init succesful");
+    super::driver::mmu::mmu_test();
+
     
     let fb_addr = unsafe {&_stack_end} as *const u8 as *mut u8;
     let bpp = 3;
@@ -158,13 +160,14 @@ fn setup_qemu() -> KernelStruct<'static> {
         gic.init_gic();
         let timer_interrupt = 0x1e;
         gic.set_interrupt_trigger(timer_interrupt, false);
-        gic.enable_interrupt(timer_interrupt);
         gic.set_interrupt_group(timer_interrupt, true);
-        //for x in 32..1024 {
-        //    gic.enable_interrupt(x);
-        //    gic.set_interrupt_group(x, true);
-        //    gic.set_interrupt_trigger(x, true);
-        //}
+        gic.enable_interrupt(timer_interrupt);
+        
+        for x in 32..1024 {
+            gic.set_interrupt_group(x, false);
+            gic.set_interrupt_trigger(x, true);
+            gic.enable_interrupt(x);
+        }
     }
 
     k_struct     
@@ -212,14 +215,13 @@ pub extern fn _start_rust(_argc: u64, _argv: *const *const u64) -> ! {
         let ks = setup_apple();
         #[cfg(not(feature = "apl"))]
         let ks = setup_qemu();
-        cpu::get_cpu_features();
-        cpu::get_cpu_features2();
-        //enable_all_interrupts();
-        //enable_timer_interrupt(1000);
+        //cpu::get_cpu_features();
+        //cpu::get_cpu_features2();
+        enable_all_interrupts();
+        enable_timer_interrupt(1000);
         let pci_s = 0x4010000000 as *mut u8;
-        let mut pci;
         unsafe {
-            pci = pci_s.add(0 << 20 | 1 << 15 | 0 << 12);
+            let pci = pci_s.add(0 << 20 | 1 << 15 | 0 << 12);
             hex_print(pci, 0x10);
             let dev = driver::pci::PCIHeader::new(pci);
             println!("{:#x?}", dev);
@@ -227,25 +229,24 @@ pub extern fn _start_rust(_argc: u64, _argv: *const *const u64) -> ! {
         let mut pci_bus = driver::pci::PCIBus::new(pci_s);
         pci_bus.enumerate();
         //hex_print(0x3eff0000 as *mut u8, 0x10);
-        let mut e1000 = e1000::new(core::ptr::null_mut(), 0x0, 0x0);
+        let mut e1000 = Option::None;
         for x in pci_bus.device_list {
             if x.is_some() {
                 unsafe {
                     let dev = x.unwrap();
                     if (*dev).header.vendor_id.to_le() == 0x8086 && (*dev).header.device_id.to_le() == 0x100e {
-                        e1000 = e1000::new(dev, 0x1000_0000, 0x0);
+                        e1000 = Some(e1000::new(dev, 0x1000_0000, 0x0));
                     }
                 }
             }
         }
         
-        
         let io_space = 0x1000_0000 as *mut u32;
         //hex_print32(io_space as *mut u8, 0x10);
-        e1000.init();
-        unsafe {
+        e1000.unwrap().init();
+        /*unsafe {
             hex_print32(io_space.add(0) as *mut u8, 0xf);
-        }
+        }*/
         crate::kmain(Some(ks));
     } else {
         unsafe {
@@ -258,8 +259,8 @@ pub extern fn _start_rust(_argc: u64, _argv: *const *const u64) -> ! {
             gic.set_interrupt_group(timer_interrupt, true);
         }
         dbg!("Booting on core: {current_core}\r\n");
-        //enable_timer_interrupt(1000);
-        //enable_all_interrupts();
+        enable_timer_interrupt(1000);
+        enable_all_interrupts();
         crate::kmain(None);
     }
 }
