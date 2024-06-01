@@ -129,7 +129,7 @@ _el1_entry:
 _per_core_setup:
     #Set up per core EL1 stack
     adrp x1, _stack_end
-    add x1, x1, #4
+    add x1, x1, #16  //align stack at 16 byte boundary
     mrs x0, MPIDR_EL1
     and x0, x0, #0xFF
     ldr x3, =_stack_size
