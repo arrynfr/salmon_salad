@@ -3,7 +3,7 @@ use core::ops::{Add, Sub};
 use core::ptr::{self, addr_of_mut};
 use core::arch::{asm, global_asm};
 use crate::arch::aarch64::cpu;
-use crate::driver::e1000::e1000;
+use crate::driver::e1000::E1000;
 use crate::driver::qemu::ramfb::*;
 use crate::{driver, KernelStruct, KERNEL_STRUCT};
 use super::driver::qemu::smp::*;
@@ -235,15 +235,18 @@ pub extern fn _start_rust(_argc: u64, _argv: *const *const u64) -> ! {
                 unsafe {
                     let dev = x.unwrap();
                     if (*dev).header.vendor_id.to_le() == 0x8086 && (*dev).header.device_id.to_le() == 0x100e {
-                        e1000 = Some(e1000::new(dev, 0x1000_0000, 0x0));
+                        e1000 = Some(E1000::new(dev, 0x1000_0000, 0x0));
                     }
                 }
             }
         }
         
-        let io_space = 0x1000_0000 as *mut u32;
+        //let io_space = 0x1000_0000 as *mut u32;
         //hex_print32(io_space as *mut u8, 0x10);
-        e1000.unwrap().init();
+        if let Some(e1000) = e1000.as_mut() {
+            e1000.init();
+        }
+        
         /*unsafe {
             hex_print32(io_space.add(0) as *mut u8, 0xf);
         }*/

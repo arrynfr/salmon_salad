@@ -2,19 +2,21 @@ use core::{arch::asm, ptr::{addr_of, addr_of_mut}};
 
 use super::pci::PCIDevice;
 
-pub struct e1000 {
-    device: *mut PCIDevice,
-    io_space: *mut u32,
-    memory_space: *mut u32,
-    tx_buffer: [[u8;2048]; 32],
+#[repr(align(16))]
+pub struct E1000 {
     tx_descs: [LegacyTransDesc; 32],
+    rx_descs: [LegacyRecvDesc; 32],
+
+    rx_buffer: [[u8;2048]; 32],
+    tx_buffer: [[u8;2048]; 32],
     tx_tail:    u32,
 
-    rx_descs: [LegacyRecvDesc; 32],
-    rx_buffer: [[u8;2048]; 32]
+    device: *mut PCIDevice,
+    io_space: *mut u32,
+    memory_space: *mut u32
 }
 
-#[repr(C, packed)]
+#[repr(C,  packed(16))]
 #[derive(Debug, Default, Clone, Copy)]
 struct LegacyRecvDesc {
     buffer: u64,
@@ -25,7 +27,7 @@ struct LegacyRecvDesc {
     special:u16
 }
 
-#[repr(C, packed)]
+#[repr(C, packed(16))]
 #[derive(Debug, Default, Clone, Copy)]
 struct LegacyTransDesc {
     buffer:         u64,
@@ -37,7 +39,7 @@ struct LegacyTransDesc {
     special:        u16
 } //TDESC.DEXT = 0
 
-impl e1000 {
+impl E1000 {
     const REG_CTRL:     usize = 0x0000;
     const REG_STATUS:   usize = 0x0008;
     const REG_EECD:     usize = 0x0010;
@@ -69,7 +71,7 @@ impl e1000 {
     const IMS_SRPD:     u32 = 1 << 16;
 
     pub fn new(dev: *mut PCIDevice, memory_space: usize, io_space: usize) -> Self {
-        e1000 {
+        E1000 {
             device: dev,
             io_space: io_space as *mut u32,
             memory_space: memory_space as *mut u32,
@@ -83,20 +85,21 @@ impl e1000 {
 
     pub fn init(&mut self) {
         unsafe {
+            assert!(self.tx_descs.as_ptr() as u64 % 16 == 0, "Tx descriptor buffer not 16 byte aligned!"); // These must be 16 byte aligned otherwise we fail
+            assert!(self.rx_descs.as_ptr() as u64 % 16 == 0, "Rx descriptor buffer not 16 byte aligned!"); // These must be 16 byte aligned otherwise we fail
             addr_of_mut!((*self.device).bar1).write_volatile(self.io_space as u32);
             addr_of_mut!((*self.device).bar0).write_volatile(self.memory_space as u32);
             //addr_of_mut!((*self.device).exp_rom_baddr).write_volatile(0x3000_0000 as u32 | 1);
             addr_of_mut!((*self.device).header.command).write_volatile(0b110); // Enable device in PCI-E config
-            println!("Remapped e1000...");
-            println!("{:#x?}", *self.device);
+            println!("Remapped e1000 to {:p}", self.memory_space);
 
             self.reset();
-            self.write_reg(e1000::REG_CTRL, (e1000::CTRL_ASDE | e1000::CTRL_SLU) 
-                                            & !(e1000::CTRL_ILOS | e1000::CTRL_VME));
-            let status = self.read_reg(e1000::REG_STATUS);
+            self.write_reg(E1000::REG_CTRL, (E1000::CTRL_ASDE | E1000::CTRL_SLU) 
+                                            & !(E1000::CTRL_ILOS | E1000::CTRL_VME));
+            let status = self.read_reg(E1000::REG_STATUS);
             println!("Status after reset: {status:x?}");
 
-            for x in (e1000::REG_MTA..e1000::REG_MTA_END).step_by(4) {
+            for x in (E1000::REG_MTA..E1000::REG_MTA_END).step_by(4) {
                 self.write_reg(x, 0);
             }
              // Enable interrupts
@@ -114,8 +117,6 @@ impl e1000 {
             //    println!("Got packet...");
             //}
             //print!("{:#x?}", rx_descs[0]);
-            
-
         }
     }
 
@@ -137,8 +138,8 @@ impl e1000 {
     }
 
     pub fn handle_interrupt(&mut self) {
-        self.write_reg(e1000::REG_IMS, !(e1000::IMS_LSC | e1000::IMS_RXDMT0 | e1000::IMS_RXO | e1000::IMS_RXT0));
-        let icr = self.read_reg(e1000::REG_ICR);
+        self.write_reg(E1000::REG_IMS, !(E1000::IMS_LSC | E1000::IMS_RXDMT0 | E1000::IMS_RXO | E1000::IMS_RXT0));
+        let icr = self.read_reg(E1000::REG_ICR);
 
         if icr & 0x04 != 0 {}
         if icr & 0x10 != 0 {}
@@ -146,7 +147,7 @@ impl e1000 {
             self.receive_packet()
         }
         
-        self.write_reg(e1000::REG_IMS, e1000::IMS_LSC | e1000::IMS_RXDMT0 | e1000::IMS_RXO | e1000::IMS_RXT0);
+        self.write_reg(E1000::REG_IMS, E1000::IMS_LSC | E1000::IMS_RXDMT0 | E1000::IMS_RXO | E1000::IMS_RXT0);
     }
 
     pub fn receive_packet(&self) {
@@ -179,17 +180,17 @@ impl e1000 {
         self.tx_descs[tail].sta_rsv = 0;
         self.write_reg(0x3818, next_tail);
         unsafe {
-            while addr_of_mut!(self.tx_descs[tail].sta_rsv).read_volatile() & 0xFF == 0 {}; 
+            while addr_of_mut!(self.tx_descs[tail].sta_rsv).read_volatile() & 0xFF == 0 {};
         }
         self.tx_tail = next_tail;
     }
 
     pub fn enable_interrupts(&mut self) {
-        self.write_reg(e1000::REG_IMS, e1000::IMS_LSC | e1000::IMS_RXDMT0 | e1000::IMS_RXO | e1000::IMS_RXT0);
+        self.write_reg(E1000::REG_IMS, E1000::IMS_LSC | E1000::IMS_RXDMT0 | E1000::IMS_RXO | E1000::IMS_RXT0);
     }
 
     pub fn disable_interrupts(&mut self) {
-        self.write_reg(e1000::REG_IMS, 0);
+        self.write_reg(E1000::REG_IMS, 0);
     }
 
     pub fn write_reg(&mut self, reg: usize, value: u32) {
