@@ -44,11 +44,11 @@ impl GraphicsBuffer {
         let end = self.size+fba as usize;
         let w: u64 = 0x0;
         if (end-fba as usize)%16 == 0 {
-            asm!("1:","stp x2, x2, [x0], #16", "cmp x0, x1", "bne 1b", in("x0") fba, in("x1") end, in("x2") w);
+            asm!("2:","stp x2, x2, [x0], #16", "cmp x0, x1", "bne 2b", in("x0") fba, in("x1") end, in("x2") w);
         } else if (end-fba as usize)%8 == 0 {
-            asm!("1:","str x2, [x0], #8", "cmp x0, x1", "bne 1b", in("x0") fba, in("x1") end, in("x2") w);
+            asm!("2:","str x2, [x0], #8", "cmp x0, x1", "bne 2b", in("x0") fba, in("x1") end, in("x2") w);
         } else if (end-fba as usize)%4 == 0 {
-            asm!("1:","str w2, [x0], #4", "cmp x0, x1", "bne 1b", in("x0") fba, in("x1") end, in("x2") w);
+            asm!("2:","str w2, [x0], #4", "cmp x0, x1", "bne 2b", in("x0") fba, in("x1") end, in("x2") w);
         }
     }
 

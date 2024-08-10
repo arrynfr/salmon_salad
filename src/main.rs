@@ -67,7 +67,8 @@ fn panic(info: &PanicInfo) -> ! {
     println!("Core {} panicked at {}:\r\n{}",
     arch::host::platform::get_current_core(),
     info.location().unwrap(),
-    info.message().unwrap());
+    info.message());
+
     loop {
         #[cfg(feature = "apl")]
         AppleKeyboardBacklight::set_dutycycle(1200000,1200000);
