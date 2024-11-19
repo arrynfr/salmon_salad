@@ -1,6 +1,8 @@
 OUTPUT_ARCH( "riscv64" )
 _kernel_base =  0x80000000;
 _stack_size = 0x200000;
+_alignment = 0x10000;
+_heap_size = 128*1024*1024;
 
 ENTRY(_kernel_base)
 
