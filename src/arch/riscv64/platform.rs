@@ -11,6 +11,10 @@ pub fn wait_for_interrupt() {
     }
 }
 
+pub fn wait_for_event() {
+    unimplemented!("WFE unimplemented!");
+}
+
 pub fn get_current_core() -> usize {
     let hartid: usize;
     unsafe {
@@ -36,5 +40,9 @@ pub fn disable_all_interrupts() {
 }
 
 pub fn set_interrupt_mask(imask: u64) {
+    unimplemented!();
+}
+
+pub fn get_mmu_state() -> bool {
     unimplemented!();
 }

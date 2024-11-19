@@ -41,4 +41,9 @@ SECTIONS
         . += _stack_size;
         _stack_end = .;
     }
+    .heap (NOLOAD) : ALIGN(_alignment) {
+        _heap_start = .;
+        . += (_heap_size);
+        _heap_end = .;
+    }
 }
