@@ -16,6 +16,6 @@ impl RTL8139 {
     }
 
     pub fn init() {
-        
+        unimplemented!("RTL driver is not implemented!");
     }
 }

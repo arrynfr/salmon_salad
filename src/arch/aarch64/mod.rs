@@ -10,3 +10,4 @@ pub mod platform;
 pub mod driver;
 pub mod cpu;
 pub mod exception;
+pub mod svc;

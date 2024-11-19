@@ -1,4 +1,6 @@
-use core::{arch::asm, ptr::{addr_of, addr_of_mut}};
+use core::ptr::{addr_of, addr_of_mut};
+
+use crate::arch::aarch64::driver::mmu::va_to_pa;
 
 use super::pci::PCIDevice;
 
@@ -98,6 +100,11 @@ impl E1000 {
                                             & !(E1000::CTRL_ILOS | E1000::CTRL_VME));
             let status = self.read_reg(E1000::REG_STATUS);
             println!("Status after reset: {status:x?}");
+            let addr = self.get_receive_addr();
+            println!("Mac addr is: {:x?}", addr);
+            self.set_receive_addr(0x123456789ABC);
+            //let addr = self.get_receive_addr();
+            //println!("Mac addr is: {:x?}", addr);
 
             for x in (E1000::REG_MTA..E1000::REG_MTA_END).step_by(4) {
                 self.write_reg(x, 0);
@@ -105,10 +112,20 @@ impl E1000 {
              // Enable interrupts
             self.init_rx();
             self.init_tx();
+
             //self.enable_interrupts();
 
-            let buf: [u8; 8] = [0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE];
-            self.send_packet(&buf);
+            /*let buf: [u8; 14] = [0x52,0x54,0x00,0x48,0xa1,0x75,
+                                0x52,0x54,0x00,0x12,0x34,0x56,
+                                0x08, 0x00, 0x45, 0x00, ];*/
+
+            let pkt: [u8; 74] = [0x52,0x54,0x00,0x48,0xa1,0x75,0x52,0x54,0x00,0x12,0x34,0x56,0x08,0x00,0x45,0x00,
+                        0x00,0x3c,0x46,0xd0,0x40,0x00,0x40,0x06,0xf5,0xe9,0xc0,0xa8,0x7a,0x64,0xc0,0xa8,
+                        0x7a,0x01,0x9c,0xd8,0x1f,0x40,0x34,0xad,0x01,0x4d,0x00,0x00,0x00,0x00,0xa0,0x02,
+                        0x82,0x00,0xfe,0x30,0x00,0x00,0x02,0x04,0xff,0xd7,0x04,0x02,0x08,0x0a,0x11,0x76,
+                        0xa0,0xe5,0x00,0x00,0x00,0x00,0x01,0x03,0x03,0x07];
+
+            self.send_packet(&pkt);
             
             //println!("{:p} {:#x?}", addr_of!(rx_descs), rx_descs);
             //loop {
@@ -122,10 +139,10 @@ impl E1000 {
 
     pub fn init_rx(&mut self) {
         for x in 0..self.rx_descs.len() {
-            self.rx_descs[x].buffer = self.rx_buffer[x].as_ptr() as u64;
+            self.rx_descs[x].buffer = va_to_pa(self.rx_buffer[x].as_ptr() as usize).unwrap() as u64;
         }
-        let hi = (addr_of!(self.rx_descs) as u64 >> 32) as u32;
-        let lo = addr_of!(self.rx_descs) as u32;
+        let hi = (va_to_pa(addr_of!(self.rx_descs) as usize).unwrap() as u64 >> 32) as u32;
+        let lo = va_to_pa(addr_of!(self.rx_descs) as usize).unwrap() as u32;
         let qlen = core::mem::size_of_val(self.rx_descs.as_slice()) as u32;
         println!("{:x}_{:x}: {:x}", hi, lo, qlen);
         self.write_reg(0x2800, lo); //addr lo
@@ -158,8 +175,8 @@ impl E1000 {
         for x in 0..self.tx_descs.len() {
             self.tx_descs[x].buffer = 0x0 as u64;
         }
-        let hi = (addr_of!(self.tx_descs) as u64 >> 32) as u32;
-        let lo = addr_of!(self.tx_descs) as u32;
+        let hi = (va_to_pa(addr_of!(self.tx_descs) as usize).unwrap() as u64 >> 32) as u32;
+        let lo = va_to_pa(addr_of!(self.tx_descs) as usize).unwrap() as u32;
         self.write_reg(0x3800, lo);
         self.write_reg(0x3804, hi);
         let qlen = core::mem::size_of_val(self.tx_descs.as_slice()) as u32;
@@ -174,7 +191,7 @@ impl E1000 {
         assert!(buffer.len() <= 2048);
         let tail = self.tx_tail as usize;
         let next_tail = ((tail+1)%self.tx_descs.len()) as u32;
-        self.tx_descs[tail].buffer = buffer.as_ptr() as u64;
+        self.tx_descs[tail].buffer = va_to_pa(buffer.as_ptr() as usize).unwrap() as u64;
         self.tx_descs[tail].len = buffer.len() as u16;
         self.tx_descs[tail].cmd = 0b0000_1011;
         self.tx_descs[tail].sta_rsv = 0;
@@ -205,8 +222,34 @@ impl E1000 {
         assert!(reg%core::mem::size_of::<u32>() == 0); // regs are 4byte aligned
         assert!(reg <= 128*1024); // Address space is 128k size
         unsafe {
-            self.memory_space.add(reg/4).read_volatile()
+            self.memory_space.add(reg/4).read_volatile().to_le()
         }
+    }
+
+    pub fn write_reg64(&mut self, reg: usize, value: u64) {
+        assert!(reg%core::mem::size_of::<u64>() == 0); // regs are 8byte aligned
+        assert!(reg <= 128*1024); // Address space is 128k size
+        unsafe {
+            (self.memory_space.add(reg/4) as *mut u64).write_volatile(value.to_le());
+        }
+    }
+
+    pub fn read_reg64(&self, reg: usize) -> u64 {
+        assert!(reg%core::mem::size_of::<u64>() == 0); // regs are 8byte aligned
+        assert!(reg <= 128*1024); // Address space is 128k size
+        unsafe {
+            (self.memory_space.add(reg/4) as *mut u64).read_volatile().to_le()
+        }
+    }
+
+    pub fn get_receive_addr(&self) -> u64 {
+        (self.read_reg64(0x5400).to_be() & !(0xFFFF)) >> 16
+    }
+
+    pub fn set_receive_addr(&mut self, mut addr: u64) {
+        addr = addr.to_be();
+        assert!(addr & 0xFFFF == 0x0, "MAC address can only be 48bit");
+        self.write_reg64(0x5400, addr >> 16);
     }
 
     pub fn reset(&mut self) {
@@ -218,16 +261,3 @@ impl E1000 {
         self.read_reg(0x0014) & 1 << 0x10 != 0
     }
 }
-
-/*
-Fiber Copper Fiber
-(82544GC/EI
-Copper
-(82544GC/EI
-IPGT 10 10 6 8
-IPGR1 10 10 8a
-a. Applicable to the 82541xx and 82547GI/EI.
-8a
-IPGR2 10 10 6a 6a
-
-*/

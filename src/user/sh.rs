@@ -71,6 +71,10 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
                 Ok(())
             } else { panic!("Kernel struct is null!"); }
         }
+        "mmu" => {
+            println!("{}", arch::host::platform::get_mmu_state());
+            Ok(())
+        }
         "fsup" => {
             let ks = KERNEL_STRUCT.load(Ordering::SeqCst);
             if ks != ptr::null_mut() {
@@ -102,6 +106,11 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
         "svc" => {
             #[cfg(target_arch = "aarch64")]
             unsafe {asm!("svc 0x5") }
+            Ok(()) 
+        }
+        "dbg" => {
+            #[cfg(target_arch = "aarch64")]
+            unsafe {asm!("svc 0xdb9") }
             Ok(()) 
         }
         "drop" => {

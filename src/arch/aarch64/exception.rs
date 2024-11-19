@@ -16,11 +16,11 @@ const _EC_SVE:   u8 = 0b01_10_01;
 const _EC_TME:   u8 = 0b01_10_11;
 const _EC_PAC:   u8 = 0b01_11_00;
 const _EC_SME:   u8 = 0b01_11_01;
-const EC_IABTL:  u8 = 0b10_00_00;
-const EC_IABT:   u8 = 0b10_00_01;
-const _EC_PCAL:  u8 = 0b10_00_10;
-const EC_DABTL:  u8 = 0b10_01_00;
-const EC_DABT:   u8 = 0b10_01_01;
+const EC_IABTL:  u8 = 0b10_00_00; // Used for MMU faults for instruction access
+const EC_IABT:   u8 = 0b10_00_01; // Used for MMU faults for instruction access
+const EC_PCAL:  u8 = 0b10_00_10;
+const EC_DABTL:  u8 = 0b10_01_00; // Used for MMU faults for data access
+const EC_DABT:   u8 = 0b10_01_01; // Used for MMU faults for data access
 const _EC_SPAL:  u8 = 0b10_01_10;
 const _EC_MOPS:  u8 = 0b10_01_11;
 const _EC_FPE:   u8 = 0b10_11_00;
@@ -110,9 +110,10 @@ fn exception(frame: &mut ExceptionFrame) {
     //let instruction_length: u8 = (frame.esr >> 25 & 0b1) as u8; // 0x0:16bit / 0x1:32bit
     match ec {
         EC_UNK => {
-            panic!("{:b} exception!\r\n{:#x?}", ec, frame);
+            panic!("Unknown exception!\r\n{:#x?}", frame);
         }
         EC_DABT | EC_DABTL => {
+            println!("Data abort with ISS: {}", frame.esr & 0xFFFF);
             panic!("EC_DABT exception!\r\n{:#x?}", frame);
         }
         EC_IABT | EC_IABTL => {
@@ -124,10 +125,14 @@ fn exception(frame: &mut ExceptionFrame) {
         }
         EC_SVC => {
             let svc_number = (frame.esr & 0xFFFF) as u16;
-            match svc_number {
-                0x1337 => { println!("EC_SVC from userspace: {svc_number}!");}
-                _ => {println!("EC_SVC exception with number {svc_number}!");}
+            if svc_number == 0x0db9 {
+                println!("{:#x?}", frame);
+            } else {
+                super::svc::handle_svc(svc_number);
             }
+        }
+        EC_PCAL => {
+            panic!("PC unalinged");
         }
         _ => { panic!("Unknown EC: {:b}", ec); }
     }

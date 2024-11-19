@@ -2,6 +2,8 @@ use core::ffi::CStr;
 use core::ptr::addr_of;
 use core::mem;
 
+use crate::arch::host::driver::mmu::va_to_pa;
+
 #[repr(C)]
 #[derive(Debug)]
 struct FWCfgFile {
@@ -48,23 +50,25 @@ unsafe fn qemu_dma_transfer (control: u32, len: u32, addr: u64) {
         len: len.to_be(),
         addr: addr.to_be()
     };
+    let dma_addr = va_to_pa(addr_of!(dma) as usize).unwrap() as u64;
     unsafe {
-        fw_cfg_dma.write_volatile((addr_of!(dma) as u64).to_be());
+        fw_cfg_dma.write_volatile(dma_addr.to_be());
     }
 
     while (dma.control & !QEMU_CFG_DMA_CTL_ERROR) != 0 {}
     if (dma.control & QEMU_CFG_DMA_CTL_ERROR) == 1 {
         println!("An error occured in qemu_dma_transfer");
     }
+    
+
 }
 
 pub fn setup_ramfb(fb_addr: *mut u8, width: u32, height: u32) {
     let mut num_entries: u32 = 0xFFFFFFFF;
     unsafe {
         qemu_dma_transfer(0x19 << 16| QEMU_CFG_DMA_CTL_SELECT | QEMU_CFG_DMA_CTL_READ,
-                        4, addr_of!(num_entries) as u64);
+                        4,  va_to_pa(addr_of!(num_entries) as usize).unwrap() as u64);
     }
-
     num_entries = num_entries.to_be();
 
     let ramfb = FWCfgFile {
@@ -77,7 +81,7 @@ pub fn setup_ramfb(fb_addr: *mut u8, width: u32, height: u32) {
     for _ in 0..num_entries {
         unsafe {
             qemu_dma_transfer(QEMU_CFG_DMA_CTL_READ, mem::size_of::<FWCfgFile>() as u32,
-                            addr_of!(ramfb) as u64);
+            va_to_pa(addr_of!(ramfb) as usize).unwrap() as u64);
         }
         let entry = CStr::from_bytes_until_nul(&ramfb.name).unwrap();
         let entry = entry.to_str().unwrap();
@@ -85,7 +89,6 @@ pub fn setup_ramfb(fb_addr: *mut u8, width: u32, height: u32) {
             break;
         }
     }
-
     //println!("{:#x?}",ramfb.select.to_be());
     let pixel_format = ('R' as u32) | (('G' as u32) << 8) | 
     (('2' as u32) << 16) | (('4' as u32) << 24);
@@ -104,7 +107,7 @@ pub fn setup_ramfb(fb_addr: *mut u8, width: u32, height: u32) {
     unsafe {
         qemu_dma_transfer((ramfb.select.to_be() as u32) << 16 
     |   QEMU_CFG_DMA_CTL_SELECT 
-    |   QEMU_CFG_DMA_CTL_WRITE, mem::size_of::<RamFBCfg>() as u32, addr_of!(ramfb_cfg) as u64);
+    |   QEMU_CFG_DMA_CTL_WRITE, mem::size_of::<RamFBCfg>() as u32, va_to_pa(addr_of!(ramfb_cfg) as usize).unwrap() as u64);
     }
 
 }

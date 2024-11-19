@@ -4,6 +4,7 @@ _num_cores = 4;
 _ram_size = 2048*1024*1024;
 _serial_base = 0x9000000;
 _alignment = 0x10000;
+_heap_size = 512*1024*1024;
 
 . = 0;
 
@@ -55,4 +56,11 @@ SECTIONS
         . += (_stack_size*_num_cores);
         _user_stack = .;
     }
+    .heap (NOLOAD) : ALIGN(_alignment) {
+        _heap_start = .;
+        . += (_heap_size);
+        _heap_end = .;
+    }
+    . = ALIGN(_alignment);
+    _kernel_end = .;
 }

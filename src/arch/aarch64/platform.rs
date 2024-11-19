@@ -182,6 +182,12 @@ pub fn get_sctlr_el2() -> u64 {
     sctlr
 }
 
+pub fn get_mmu_state() -> bool {
+    let sctlr:u64;
+    unsafe { asm!("mrs {}, SCTLR_EL1", out(reg) sctlr, options(nostack, nomem)); }
+    (sctlr & 1) == 1
+}
+
 pub fn set_timer_ticks(ticks: u32) {
     unsafe {
         asm!(

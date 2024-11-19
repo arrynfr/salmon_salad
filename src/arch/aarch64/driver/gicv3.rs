@@ -210,9 +210,7 @@ impl GIC {
 
         let version = (*(gicd_base as *mut GICD)).gicd_pidr2 >> 4;
         let typer = (*(gicd_base as *mut GICD)).gicd_typer & (1 << 16) != 0;
-        println!("GICD_TYPER: {typer:x?}");
         if version == 3 {
-
             //Find redistributor for the current core
             let mut gicr: Option<GICR> = None;
             let current_core = _get_current_core() as usize;
@@ -272,17 +270,16 @@ impl GIC {
                 in(reg) 0b1,
                 options(nostack, nomem)
             );
+        addr_of_mut!((*self.gicr.sgi_base).gicr_igroupr0).write_volatile(!0);
     }
 
     pub unsafe fn init_gic(&self) {
             self.init_gicd();
             self.per_core_init();
             //We only use NS group 1 interrupts so set all to group 1 
-            addr_of_mut!((*self.gicr.sgi_base).gicr_igroupr0).write_volatile(!0);
             for x in 0..32 {
                 addr_of_mut!((*self.gicd).gicd_igroupr[x]).write_volatile(!0);
             }
-
     }
 
     pub fn acknowledge_interrupt(intid: u64) {

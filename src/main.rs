@@ -11,9 +11,16 @@ mod efi; // efi_main() is the entry point on UEFI systems
 mod acpi;
 mod arch;
 mod driver;
-use core::{panic::PanicInfo, ptr::{self, addr_of}, sync::atomic::AtomicPtr};
+mod util;
+mod mm;
+use core::{alloc, panic::PanicInfo, ptr::{self, addr_of}, sync::atomic::AtomicPtr};
 
+use driver::pci::PCIBus;
+use mm::{get_heap_end, get_heap_size, get_heap_start};
 use user::graphics::{console::GfxConsole, gfx::GraphicsBuffer};
+use mm::alloc::string::*;
+use mm::alloc::vec::*;
+use mm::alloc::format;
 mod user;
 mod kernel;
 
@@ -21,13 +28,15 @@ mod kernel;
 use crate::arch::aarch64::driver::apl::keyboard_backlight::AppleKeyboardBacklight;
 
 static KERNEL_STRUCT: AtomicPtr<KernelStruct> = AtomicPtr::new(ptr::null_mut());
+static KBUF: util::ringbuffer::RingBuffer = util::ringbuffer::RingBuffer::new();
 
 #[derive(Debug)]
 #[repr(align(64))]
 pub struct KernelStruct<'a> {
     framebuffer: Option<GraphicsBuffer>,
     console: Option<GfxConsole<'a>>,
-    serial_addr: Option<*mut u8>
+    serial_addr: Option<*mut u8>,
+    pci:    Option<PCIBus>
 }
 
 impl Default for KernelStruct<'static> {
@@ -35,7 +44,8 @@ impl Default for KernelStruct<'static> {
         KernelStruct {
             framebuffer: None,
             console: None,
-            serial_addr: None
+            serial_addr: None,
+            pci: None
         }
     }
 }
@@ -51,27 +61,27 @@ fn halt_system() -> ! {
     loop {
         arch::host::platform::disable_all_interrupts();
         arch::host::platform::wait_for_interrupt();
+        arch::host::platform::wait_for_event();
     }
 }
 
 #[panic_handler]
 #[inline(never)]
 fn panic(info: &PanicInfo) -> ! {
+    #[cfg(feature = "apl")]
+    AppleKeyboardBacklight::set_dutycycle(1200000,1200000);
     /*let kernel_struct = unsafe { KERNEL_STRUCT.load(core::sync::atomic::Ordering::SeqCst).as_mut() };
     if let Some(kernel_struct) = kernel_struct {
         if let Some(console) = kernel_struct.console.as_mut() {
             console.clear();
         }
     }*/
-    arch::host::platform::disable_all_interrupts();
     println!("Core {} panicked at {}:\r\n{}",
     arch::host::platform::get_current_core(),
     info.location().unwrap(),
     info.message());
 
     loop {
-        #[cfg(feature = "apl")]
-        AppleKeyboardBacklight::set_dutycycle(1200000,1200000);
         halt_system();  
     }
 }
@@ -102,6 +112,7 @@ pub fn disable_text_mode() {
     }
 }
 
+
 /// The main function of the actual kernel from
 /// here platform specific implementations of
 /// low level functions are only to be used
@@ -113,20 +124,26 @@ pub fn disable_text_mode() {
 pub fn kmain(kernel_struct: Option<KernelStruct>) -> ! {
     if  arch::host::platform::is_boot_core() {
         if let Some(kernel_struct) = kernel_struct {
-                KERNEL_STRUCT.compare_exchange(ptr::null_mut(), addr_of!(kernel_struct) as *mut KernelStruct,
-                core::sync::atomic::Ordering::SeqCst, core::sync::atomic::Ordering::SeqCst)
-                .expect("Couldn't initialize kernel struct!");
+                
+                let _ = KERNEL_STRUCT.compare_exchange(ptr::null_mut(), addr_of!(kernel_struct) as *mut KernelStruct,
+                core::sync::atomic::Ordering::SeqCst, core::sync::atomic::Ordering::SeqCst);
         }
-        let kernel_struct = unsafe { KERNEL_STRUCT.load(core::sync::atomic::Ordering::SeqCst).as_mut() };
+        //let kernel_struct = unsafe { KERNEL_STRUCT.load(core::sync::atomic::Ordering::SeqCst).as_mut() };
         match enable_text_mode() {
-            Ok(_) => { println!("Text mode started!"); },
-            Err(e) => { println!("Couldn't start textmode: {:?}", e); }
+            Ok(_) => { dbg!("Textmode started!\r\n"); },
+            Err(e) => { dbg!("Couldn't start textmode: {:?}\r\n", e); }
         }
+        println!("====Salmon salad operating system====");
+        println!("Starting kernel at: {:p}", kmain as *mut());
+        println!("Heap is {:#x} bytes at: {:p} to {:p}", get_heap_size(), get_heap_start(), get_heap_end());
+        let x = String::from("Test");
         user::sh::sh_main();
     } else {
         while KERNEL_STRUCT.load(core::sync::atomic::Ordering::SeqCst) == ptr::null_mut() {};
-        dbg!("Halting core: {}\r\n", arch::host::platform::get_current_core());
-        loop { arch::host::platform::wait_for_interrupt(); }
+        dbg!("Core: {} waiting for interrupt loop reached!\r\n", arch::host::platform::get_current_core());
+        loop { 
+            arch::host::platform::wait_for_interrupt(); 
+        }
     }
     panic!("End of kernel reached!\r\nSystem halted!");
 }

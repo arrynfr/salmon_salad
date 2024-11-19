@@ -11,7 +11,7 @@ runner = "qemu-system-aarch64 -m 2048M -cpu cortex-a76 -M virt,gic-version=3 -bi
 
 # Test PAC with '-Zbranch-protection=bti,pac-ret,leaf' and compile with -Zbuild-std=core
 [target.aarch64-unknown-none]
-rustflags = ['-Clink-arg=-Tsrc/arch/aarch64/virt.ld', '-Crelocation-model=pic', '-Clink-arg=-pie', '-Clink-arg=-znotext']
+rustflags = ['-Clink-arg=-Tsrc/arch/aarch64/virt.ld', '-Clink-args=--Map=shiny_salmon.map', '-Crelocation-model=pic', '-Clink-arg=-pie', '-Clink-arg=-znotext']
 #runner = "qemu-system-aarch64 -m 2048M -cpu cortex-a76 -smp 4 -M virt,gic-version=3 -device virtio-net,netdev=net0 -serial mon:stdio -netdev user,id=net0 -device ramfb -usb -device usb-ehci,id=ehci -device usb-kbd -s -S -kernel "
 #runner = "echo Running like this will crash your system. Please use start_aarch64_qemu.sh to run "
 runner = "sh start_aarch64_qemu.sh"
