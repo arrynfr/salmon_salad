@@ -263,4 +263,4 @@ err_unknown_el:			.asciz "Cannot boot in unknown EL! Halting..."
 new_line:				.asciz "\r\n"
 
 .section .user
-.incbin "./test.bin"
+.incbin "./user/test.bin"

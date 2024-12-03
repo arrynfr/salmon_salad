@@ -73,30 +73,30 @@ const _EC_EBEP:  u8 = 0b11_11_01;
 #[derive(Debug)]
 #[repr(C)]
 pub struct ExceptionFrame {
-    x0: u64,
-    x1: u64,
-    x2: u64,
-    x3: u64,
-    x4: u64,
-    x5: u64,
-    x6: u64,
-    x7: u64,
-    x8: u64,
-    x9: u64,
-    x10: u64,
-    x11: u64,
-    x12: u64,
-    x13: u64,
-    x14: u64,
-    x15: u64,
-    x16: u64,
-    x17: u64,
-    x18: u64,
-    fp: u64,
-    lr: u64,
-    elr: u64,
-    esr: u64,
-    far: u64
+    pub x0: u64,
+    pub x1: u64,
+    pub x2: u64,
+    pub x3: u64,
+    pub x4: u64,
+    pub x5: u64,
+    pub x6: u64,
+    pub x7: u64,
+    pub x8: u64,
+    pub x9: u64,
+    pub x10: u64,
+    pub x11: u64,
+    pub x12: u64,
+    pub x13: u64,
+    pub x14: u64,
+    pub x15: u64,
+    pub x16: u64,
+    pub x17: u64,
+    pub x18: u64,
+    pub fp: u64,
+    pub lr: u64,
+    pub elr: u64,
+    pub esr: u64,
+    pub far: u64
 }
 
 #[no_mangle]
@@ -107,6 +107,7 @@ pub extern "C" fn exception_handler(frame: *mut ExceptionFrame) {
 
 fn exception(frame: &mut ExceptionFrame) {
     let ec: u8 = (frame.esr >> 26 & 0b111111) as u8;
+    //println!("{:#x?}", frame);
     //let instruction_length: u8 = (frame.esr >> 25 & 0b1) as u8; // 0x0:16bit / 0x1:32bit
     match ec {
         EC_UNK => {
@@ -128,7 +129,7 @@ fn exception(frame: &mut ExceptionFrame) {
             if svc_number == 0x0db9 {
                 println!("{:#x?}", frame);
             } else {
-                super::svc::handle_svc(svc_number);
+                super::svc::handle_svc(svc_number, frame);
             }
         }
         EC_PCAL => {

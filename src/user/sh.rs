@@ -1,14 +1,19 @@
-use crate::{arch, print, KERNEL_STRUCT};
+use crate::{arch::{self, aarch64::platform::delay_s}, kernel::uname::Utsname, print, util::util::hex_print32, KERNEL_STRUCT};
 use core::{arch::asm, ascii, ptr::{self, write_volatile}, sync::atomic::Ordering};
 
-use super::graphics::console::GfxConsole;
+use super::graphics::{console::GfxConsole, gfx::Color};
 
 const HELP_TEXT: &str = "arsh shell
 copyright 2023 arrynfr
 
 Available builtin commands:
-cd          help
-exit";
+bg          cd
+clear       dbg
+drop        exit
+fsdown      fsup
+hd          help
+mmu         shutdown
+svc         wb";
 
 // Custom error type for the shell
 #[derive(Debug)]
@@ -16,6 +21,7 @@ enum ShellError {
     UnknownCommand,
     ParsingError,
     UserExit,
+    ArgumentError,
     _InvalidPtr
 }
 
@@ -44,6 +50,76 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
             Ok(())
         }
         "cd" => Ok(()),
+        "bg" => {
+            let mut args = [0; 3];
+            let mut it = input_it.take(3).enumerate().peekable();
+            if it.peek().is_none() {
+                return Err(ShellError::ArgumentError);
+            }
+
+            while let Some((i, x)) = it.next() {
+                args[i] = match x.starts_with("0x") {
+                    true => usize::from_str_radix(&x[2..], 16).map_err(|_| ShellError::ParsingError)?,
+                    false => x.parse().map_err(|_| ShellError::ParsingError)?,
+                };
+                
+                if it.peek().is_none() && i != 2 {
+                    return Err(ShellError::ArgumentError);
+                }
+            }
+            
+            let ks = KERNEL_STRUCT.load(Ordering::SeqCst);
+            if ks != ptr::null_mut() {
+                GfxConsole::_aquire();
+                unsafe {
+                    match &mut (*ks).console {
+                        Some(c) => {
+                                    c.set_background_color(Color { b: args[0] as u16, g: args[1] as u16, r: args[2] as u16});
+                                    c.clear();
+                                }
+                        None => {}
+                    }
+                }
+                GfxConsole::_release();
+            }
+
+            Ok(())
+        }
+        "fg" => {
+            let mut args = [0; 3];
+            let mut it = input_it.take(3).enumerate().peekable();
+            if it.peek().is_none() {
+                return Err(ShellError::ArgumentError);
+            }
+
+            while let Some((i, x)) = it.next() {
+                args[i] = match x.starts_with("0x") {
+                    true => usize::from_str_radix(&x[2..], 16).map_err(|_| ShellError::ParsingError)?,
+                    false => x.parse().map_err(|_| ShellError::ParsingError)?,
+                };
+                
+                if it.peek().is_none() && i != 2 {
+                    return Err(ShellError::ArgumentError);
+                }
+            }
+            
+            let ks = KERNEL_STRUCT.load(Ordering::SeqCst);
+            if ks != ptr::null_mut() {
+                GfxConsole::_aquire();
+                unsafe {
+                    match &mut (*ks).console {
+                        Some(c) => {
+                                    c.set_font_color(Color { b: args[0] as u16, g: args[1] as u16, r: args[2] as u16});
+                                    c.clear();
+                                }
+                        None => {}
+                    }
+                }
+                GfxConsole::_release();
+            }
+
+            Ok(())
+        }
         "wb" => {
             // Write to memory command
             let mut args = [0; 2];
@@ -60,14 +136,14 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
         "clear" => {
             let ks = KERNEL_STRUCT.load(Ordering::SeqCst);
             if ks != ptr::null_mut() {
-                GfxConsole::_aquire();
+                //GfxConsole::_aquire();
                 unsafe {
                     match &mut (*ks).console {
                         Some(c) => {c.clear()}
                         None => {}
                     }
                 }
-                GfxConsole::_release();
+                //GfxConsole::_release();
                 Ok(())
             } else { panic!("Kernel struct is null!"); }
         }
@@ -103,6 +179,19 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
             }
                 Ok(())
         }
+        "uname" => {
+            let mut ustr = Utsname::default();
+            unsafe {
+                asm!("svc 0x0",
+                    in("x0") &mut ustr)
+            }
+            print!("{} ", ustr.sysname.as_str().trim_matches('\x00'));
+            print!("{} ", ustr.nodename.as_str().trim_matches('\x00'));
+            print!("{} ", ustr.release.as_str().trim_matches('\x00'));
+            print!("{} ", ustr.version.as_str().trim_matches('\x00'));
+            println!("{}", ustr.machine.as_str().trim_matches('\x00'));
+            Ok(())
+        }
         "svc" => {
             #[cfg(target_arch = "aarch64")]
             unsafe {asm!("svc 0x5") }
@@ -119,6 +208,42 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
                 unsafe {&_user_start} as *const u8 as *mut u8,
                 unsafe {&_user_stack} as *const u8 as *mut u8);
             Ok(())
+        }
+        "hd" => {
+            let mut args = [0; 2];
+            let mut it = input_it.take(2).enumerate().peekable();
+            if it.peek().is_none() {
+                return Err(ShellError::ArgumentError);
+            }
+
+            while let Some((i, x)) = it.next() {
+                args[i] = match x.starts_with("0x") {
+                    true => usize::from_str_radix(&x[2..], 16).map_err(|_| ShellError::ParsingError)?,
+                    false => x.parse().map_err(|_| ShellError::ParsingError)?,
+                };
+                
+                if it.peek().is_none() && i != 1 {
+                    return Err(ShellError::ArgumentError);
+                }
+            }
+
+                hex_print32(args[0] as *mut u8, args[1]);
+                Ok(())
+        }
+
+        "shutdown" =>  {
+            print!("Shutting down the system");
+            for _ in 0..3 {
+                print!(".");
+                delay_s(1);
+            }
+            println!();
+            const SYSTEM_OFF: u32 = 0x8400_0008;
+            unsafe {
+                asm!("hvc 0",
+                in("x0") SYSTEM_OFF,
+                options(nostack, nomem, noreturn));
+            }
         }
         "exit" => Err(ShellError::UserExit),
         _ => Err(ShellError::UnknownCommand),
@@ -216,7 +341,28 @@ pub fn sh_main() {
                         input_index = 0;
                         string_size = 0;
                         print!("> ");
-                   } 
+                   }
+
+                   0x0C => {
+                    print!("\r\x0c");
+                    let ks = KERNEL_STRUCT.load(Ordering::SeqCst);
+                    if ks != ptr::null_mut() {
+                        //GfxConsole::_aquire();
+                        unsafe {
+                            match &mut (*ks).console {
+                                Some(c) => {c.clear()}
+                                None => {}
+                            }
+                        }
+                        //GfxConsole::_release();
+                    } else { panic!("Kernel struct is null!"); }
+                    
+                    // Reset the input buffer
+                    input_cmd.iter_mut().for_each(|x| *x = ascii::Char::Null);
+                    input_index = 0;
+                    string_size = 0;
+                    print!("> ");
+               } 
                     _ => {}
                 }
             }
