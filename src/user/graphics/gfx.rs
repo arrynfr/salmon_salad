@@ -5,6 +5,18 @@ use core::arch::asm;
 #[derive(Copy, Clone, Debug)]
 pub struct Color {pub b: u16, pub g: u16, pub r: u16}
 
+impl From<Color> for u32 {
+    fn from(color: Color) -> Self {
+        ((color.r & 0xFF) as u32) << 16 | ((color.g & 0xFF) << 8) as u32 | ((color.b & 0xFF) as u32)
+    }
+}
+
+impl From<u32> for Color {
+    fn from(item: u32) -> Self {
+        Color { b: (item & 0xFF) as u16, g: ((item >> 8) & 0xFF) as u16, r: ((item >> 16) & 0xFF) as u16}
+    }
+}
+
 #[derive(Debug ,PartialEq, Clone)]
 pub enum PixelFormat {
     BGR8,
@@ -39,34 +51,45 @@ impl GraphicsBuffer {
     }
 
     #[cfg(target_arch = "aarch64")]
-    unsafe fn _clear_screen_arm(&self) {
-        let fba = self.address;
-        let end = self.size+fba as usize;
-        let w: u64 = 0x0;
-        if (end-fba as usize)%16 == 0 {
-            asm!("2:","stp x2, x2, [x0], #16", "cmp x0, x1", "bne 2b", in("x0") fba, in("x1") end, in("x2") w);
-        } else if (end-fba as usize)%8 == 0 {
-            asm!("2:","str x2, [x0], #8", "cmp x0, x1", "bne 2b", in("x0") fba, in("x1") end, in("x2") w);
-        } else if (end-fba as usize)%4 == 0 {
-            asm!("2:","str w2, [x0], #4", "cmp x0, x1", "bne 2b", in("x0") fba, in("x1") end, in("x2") w);
+    unsafe fn _clear_screen_arm(&self, color: u32) {
+        if color == 0 {
+            let fba = self.address;
+            let end = self.size+fba as usize;
+            let c: u64 = color.into();
+            let c = (c << 32) | c;
+            if (end-fba as usize)%16 == 0 {
+                asm!("2:","stp x2, x2, [x0], #16", "cmp x0, x1", "bne 2b", in("x0") fba, in("x1") end, in("x2") c);
+            } else if (end-fba as usize)%8 == 0 {
+                asm!("2:","str x2, [x0], #8", "cmp x0, x1", "bne 2b", in("x0") fba, in("x1") end, in("x2") c);
+            } else if (end-fba as usize)%4 == 0 {
+                asm!("2:","str w2, [x0], #4", "cmp x0, x1", "bne 2b", in("x0") fba, in("x1") end, in("x2") c);
+            }
+        } else {
+            self._clear_screen_generic(color);
         }
     }
 
-    unsafe fn _clear_screen_generic(&self) {
-        if self.size%16 == 0 {
-            let fba: *mut u128 = self.address as *mut u128;
-            for x in 0..self.size/16 {
-                fba.add(x).write_volatile(0);
+    unsafe fn _clear_screen_generic(&self, color: u32) {
+            if self.size%8 == 0 {
+                let fba: *mut u64 = self.address as *mut u64;
+                let c: Color = color.into();
+                let c1: u64 = (c.g as u64) << 56 | (c.b as u64) << 48 | (color as u64) << 24 | color as u64;
+                let c2: u64 = (c.b as u64) << 56 | (c.r as u64) << 48 | (c1 >> 16);
+                let c3: u64 = (c.r as u64) << 56 | c1 >> 8;
+                for x in (0..self.size/8).step_by(3) {
+                    fba.add(x).write_volatile(c1);
+                    fba.add(x+1).write_volatile(c2);
+                    fba.add(x+2).write_volatile(c3);
+                }
             }
-        }
     }
     
     #[inline(always)]
-    pub unsafe fn clear_screen(&self) {
+    pub unsafe fn clear_screen(&self, color: u32) {
         #[cfg(target_arch = "aarch64")]
-        self._clear_screen_arm();
+        self._clear_screen_arm(color);
         #[cfg(not(target_arch = "aarch64"))]
-        self._clear_screen_generic();
+        self._clear_screen_generic(color);
     }
 
     pub unsafe fn draw_pixel(&self, x: isize, y: isize, color: u32) {
@@ -104,7 +127,7 @@ impl GraphicsBuffer {
         let col=if self.pixel_format == PixelFormat::APL {
             ((color.r & 0x3FF) as u32) << 20 | ((color.g & 0x3FF) as u32) << 10 | ((color.b & 0x3FF) as u32)
         } else {
-            ((color.r & 0xFF) as u32) << 16 | ((color.g & 0xFF) << 8) as u32 | ((color.b & 0xFF) as u32)
+            color.into()
         };
         self.draw_pixel(x, y, col);
     }

@@ -1,4 +1,4 @@
 target remote localhost:1234
 layout asm
 layout regs
-add-symbol-file target/aarch64-unknown-none/debug/salmon_salad 0x40800000
+add-symbol-file target/aarch64-unknown-none/debug/salmon_salad 0xffff000040800000

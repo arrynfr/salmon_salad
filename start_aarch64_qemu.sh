@@ -1,6 +1,6 @@
 DEBUG="-d mmu,guest_errors,unimp"
 SMP="-smp 4"
-#GDB="-s -S"
+GDB="-s -S"
 #VIRTIO="-device virtio-net,netdev=net0 -device virtio-rng-pci"
 DUMP="-object filter-dump,id=f1,netdev=u1,file=dump.pcap"
 #DTB=",dumpdtb=virt.dtb"

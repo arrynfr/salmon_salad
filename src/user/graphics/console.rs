@@ -141,7 +141,7 @@ impl<'a> GfxConsole<'a> {
         self.cursor.0 = 0;
         self.cursor.1 = 0;
         unsafe {
-            self.gfx_buffer.clear_screen();
+            self.gfx_buffer.clear_screen(self.background_color.into());
         }
     }
 }

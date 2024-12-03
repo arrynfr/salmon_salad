@@ -1,5 +1,7 @@
 use core::arch::asm;
 
+use crate::print;
+
 /// Put the core into a low power state
 /// until an interrupt occours.
 pub fn wait_for_interrupt() {
@@ -211,7 +213,7 @@ pub fn drop_to_el0(code: *const u8, sp: *const u8) {
             "msr sp_el0, {}",
             "eret",
             in(reg) 0x3c0,
-            in(reg) code,
+            in(reg) ((code as usize) & 0xFFFF_FFFF),
             in(reg) sp
         )
     }
