@@ -1,663 +1,149 @@
 .section .text
-// Typical exception vector table code.
-// Every table entry can hold up to 128 bytes or 32 instructions
+.macro save_ctx
+    sub sp, sp, #288
+
+    stp x0, x1, [sp, #0]
+    stp x2, x3, [sp, #16]
+    stp x4, x5, [sp, #32]
+    stp x6, x7, [sp, #48]
+    stp x8, x9, [sp, #64]
+    stp x10, x11, [sp, #80]
+    stp x12, x13, [sp, #96]
+    stp x14, x15, [sp, #112]
+    stp x16, x17, [sp, #128]
+    str x18, [sp, #144]
+    stp x29, x30, [sp, #152]
+
+    mrs x0, ELR_EL1
+    mrs x1, ESR_EL1
+    mrs x2, FAR_EL1
+    stp x0, x1, [sp, #168]
+    str x2, [sp, #184]
+
+    mrs x0, SPSR_EL1
+    str x0, [sp, #192]
+
+    stp x19, x20, [sp, #200]
+    stp x21, x22, [sp, #216]
+    stp x23, x24, [sp, #232]
+    stp x25, x26, [sp, #248]
+    stp x27, x28, [sp, #264]
+.endm
+
+.macro restore_ctx
+    ldr x0, [sp, #168]
+    ldr x1, [sp, #192]
+    msr ELR_EL1, x0
+    msr SPSR_EL1, x1
+
+    ldp x19, x20, [sp, #200]
+    ldp x21, x22, [sp, #216]
+    ldp x23, x24, [sp, #232]
+    ldp x25, x26, [sp, #248]
+    ldp x27, x28, [sp, #264]
+
+    ldp x0, x1, [sp, #0]
+    ldp x2, x3, [sp, #16]
+    ldp x4, x5, [sp, #32]
+    ldp x6, x7, [sp, #48]
+    ldp x8, x9, [sp, #64]
+    ldp x10, x11, [sp, #80]
+    ldp x12, x13, [sp, #96]
+    ldp x14, x15, [sp, #112]
+    ldp x16, x17, [sp, #128]
+    ldr x18, [sp, #144]
+    ldp x29, x30, [sp, #152]
+
+    add sp, sp, #288
+.endm
+
+.macro call_sync handler
+    save_ctx
+    mov x0, sp
+    bl \handler
+    restore_ctx
+    eret
+.endm
+
+.macro call_irq handler
+    save_ctx
+    mov x0, sp
+    bl \handler
+    restore_ctx
+    eret
+.endm
+
 .balign 0x800
 vector_table_el1:
-curr_el_sp0_sync:        // The exception handler for a synchronous 
-                         // exception from the current EL using SP0.
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
 
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+curr_el_sp0_sync:
+    b sync_entry
 
 .balign 0x80
-curr_el_sp0_irq:         // The exception handler for an IRQ exception
-                         // from the current EL using SP0.
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+curr_el_sp0_irq:
+    b irq_entry
 
 .balign 0x80
-curr_el_sp0_fiq:         // The exception handler for an FIQ exception
-                         // from the current EL using SP0.
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+curr_el_sp0_fiq:
+    b irq_entry
 
 .balign 0x80
-curr_el_sp0_serror:      // The exception handler for a System Error 
-                         // exception from the current EL using SP0.
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+curr_el_sp0_serror:
+    b unhandled_entry
 
 .balign 0x80
-curr_el_spx_sync:        // The exception handler for a synchrous 
-                         // exception from the current EL using the
-                         // current SP.
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl exception_handler
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
-
-
+curr_el_spx_sync:
+    b sync_entry
 
 .balign 0x80
-curr_el_spx_irq:         // The exception handler for an IRQ exception from 
-                         // the current EL using the current SP.
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl irq_handler
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+curr_el_spx_irq:
+    b irq_entry
 
 .balign 0x80
-curr_el_spx_fiq:         // The exception handler for an FIQ from 
-                         // the current EL using the current SP.
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+curr_el_spx_fiq:
+    b irq_entry
 
 .balign 0x80
-curr_el_spx_serror:      // The exception handler for a System Error 
-                         // exception from the current EL using the
-                         // current SP.
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
-
- .balign 0x80
-lower_el_aarch64_sync:   // The exception handler for a synchronous 
-                         // exception from a lower EL (AArch64).
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl exception_handler
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+curr_el_spx_serror:
+    b unhandled_entry
 
 .balign 0x80
-lower_el_aarch64_irq:    // The exception handler for an IRQ from a lower EL
-                         // (AArch64).
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+lower_el_aarch64_sync:
+    b sync_entry
 
 .balign 0x80
-lower_el_aarch64_fiq:    // The exception handler for an FIQ from a lower EL
-                         // (AArch64).
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+lower_el_aarch64_irq:
+    b irq_entry
 
 .balign 0x80
-lower_el_aarch64_serror: // The exception handler for a System Error 
-                         // exception from a lower EL(AArch64).
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+lower_el_aarch64_fiq:
+    b irq_entry
 
 .balign 0x80
-lower_el_aarch32_sync:   // The exception handler for a synchronous 
-                         // exception from a lower EL(AArch32).
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+lower_el_aarch64_serror:
+    b unhandled_entry
 
 .balign 0x80
-lower_el_aarch32_irq:    // The exception handler for an IRQ exception 
-                         // from a lower EL (AArch32).
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+lower_el_aarch32_sync:
+    b unhandled_entry
 
 .balign 0x80
-lower_el_aarch32_fiq:    // The exception handler for an FIQ exception from 
-                         // a lower EL (AArch32).
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
-
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+lower_el_aarch32_irq:
+    b unhandled_entry
 
 .balign 0x80
-lower_el_aarch32_serror: // The exception handler for a System Error
-                         // exception from a lower EL(AArch32).
-    sub sp, sp, #192
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-    stp x8, x9, [sp, #64]
-    stp x10, x11, [sp, #80]
-    stp x12, x13, [sp, #96]
-    stp x14, x15, [sp, #112]
-    stp x16, x17, [sp, #128]
-    stp x18, x29, [sp, #144]
-    mrs x0, ELR_EL1
-    stp x30, x0, [sp, #160]
-    mrs x0, ESR_EL1
-    mrs x1, FAR_EL1
-    stp x0, x1, [sp, #176]
+lower_el_aarch32_fiq:
+    b irq_entry
 
-    # mrs x2, ELR_EL1
-    # mrs x3, SPSR_EL1
-    # stp x0, x1, [sp, #176]
-    
-    mov x0, sp
-    bl unhandled_exception_vector
-    
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    ldp x8, x9, [sp, #64]
-    ldp x10, x11, [sp, #80]
-    ldp x12, x13, [sp, #96]
-    ldp x14, x15, [sp, #112]
-    ldp x16, x17, [sp, #128]
-    ldp x18, x29, [sp, #144]
-    ldp x30, xzr, [sp, #160]
-    add sp, sp, #192
-    eret
+.balign 0x80
+lower_el_aarch32_serror:
+    b unhandled_entry
+
+sync_entry:
+    call_sync exception_handler
+
+irq_entry:
+    call_irq irq_handler
+
+unhandled_entry:
+    call_sync unhandled_exception_vector

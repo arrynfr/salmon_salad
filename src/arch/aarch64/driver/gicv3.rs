@@ -208,7 +208,7 @@ impl GIC {
             return Err(GICError::InvalidAddress)
         }
 
-        let version = (*(gicd_base as *mut GICD)).gicd_pidr2 >> 4;
+        let version = ((*(gicd_base as *mut GICD)).gicd_pidr2 >> 4) & 0xF;
         let typer = (*(gicd_base as *mut GICD)).gicd_typer & (1 << 16) != 0;
         if version == 3 {
             //Find redistributor for the current core
@@ -282,9 +282,14 @@ impl GIC {
             }
     }
 
-    pub fn acknowledge_interrupt(intid: u64) {
-        unsafe { asm!("msr ICC_EOIR1_EL1, {:x}", in(reg) intid) };
-        unsafe { asm!("msr ICC_DIR_EL1, {:x}", in(reg) intid) };
+    pub fn acknowledge_interrupt(intid: u64, group1: bool) {
+        if group1 {
+            unsafe { asm!("msr ICC_EOIR1_EL1, {:x}", in(reg) intid) };
+            unsafe { asm!("msr ICC_DIR_EL1, {:x}", in(reg) intid) };
+        } else {
+            unsafe { asm!("msr ICC_EOIR0_EL1, {:x}", in(reg) intid) };
+            unsafe { asm!("msr ICC_DIR_EL1, {:x}", in(reg) intid) };
+        }
     }
 
     pub fn send_sgi(sgiid: u64) {
@@ -330,12 +335,16 @@ impl GIC {
         unsafe {
             if intid <= GIC::MAX_PPI {
                 let irqs = addr_of_mut!((*self.gicr.sgi_base).gicr_igroupr0).read_volatile();
-                addr_of_mut!((*self.gicr.sgi_base).gicr_igroupr0).write_volatile(irqs & (group1_value << intid));
+                let mask = 1u32 << intid;
+                let updated = (irqs & !mask) | (group1_value << intid);
+                addr_of_mut!((*self.gicr.sgi_base).gicr_igroupr0).write_volatile(updated);
             } else {
                 let reg_num: usize = (intid/32) as usize;
                 let enable_bit = intid % 32;
                 let irqs = addr_of_mut!((*self.gicd).gicd_igroupr[reg_num]).read_volatile();
-                addr_of_mut!((*self.gicd).gicd_igroupr[reg_num]).write_volatile(irqs & (group1_value << enable_bit));
+                let mask = 1u32 << enable_bit;
+                let updated = (irqs & !mask) | (group1_value << enable_bit);
+                addr_of_mut!((*self.gicd).gicd_igroupr[reg_num]).write_volatile(updated);
             }
         }
     }
@@ -348,11 +357,15 @@ impl GIC {
         unsafe {
             if intid <= GIC::MAX_PPI {
                 let irqs = addr_of_mut!((*self.gicr.sgi_base).gicr_icfgr1).read_volatile();
-                addr_of_mut!((*self.gicr.sgi_base).gicr_icfgr1).write_volatile(irqs & (trigger << enable_bit));
+                let mask = 0b11u32 << enable_bit;
+                let updated = (irqs & !mask) | ((trigger as u32) << enable_bit);
+                addr_of_mut!((*self.gicr.sgi_base).gicr_icfgr1).write_volatile(updated);
             } else {
                 let reg_num = (intid/16) as usize;
                 let irqs = addr_of_mut!((*self.gicd).gicd_icfgr[reg_num]).read_volatile();
-                addr_of_mut!((*self.gicd).gicd_icfgr[reg_num]).write_volatile(irqs & (trigger << enable_bit));
+                let mask = 0b11u32 << enable_bit;
+                let updated = (irqs & !mask) | ((trigger as u32) << enable_bit);
+                addr_of_mut!((*self.gicd).gicd_icfgr[reg_num]).write_volatile(updated);
             }
         }
     }

@@ -96,7 +96,8 @@ pub struct ExceptionFrame {
     pub lr: u64,
     pub elr: u64,
     pub esr: u64,
-    pub far: u64
+    pub far: u64,
+    pub spsr: u64,
 }
 
 #[no_mangle]
@@ -145,14 +146,23 @@ pub extern "C" fn irq_handler(frame: *mut ExceptionFrame) {
 }
 
 fn irq(frame: &mut ExceptionFrame) {
-    let intid: u64;
+    let mut intid: u64;
+    let mut group1 = true;
     unsafe { asm!("mrs {:x}, ICC_IAR1_EL1", out(reg) intid) };
-    match intid {
-        0x1e => { handle_timer_irq() },
-        0x24 => { handle_pci_intA() },
-        _ => { println!("Got unknown interrupt 0x{:x?}", intid); }
+    if intid == 0x3ff {
+        unsafe { asm!("mrs {:x}, ICC_IAR0_EL1", out(reg) intid) };
+        group1 = false;
+        if intid == 0x3ff {
+            return;
+        }
     }
-    gicv3::GIC::acknowledge_interrupt(intid);
+    match intid {
+        0x1d => { handle_timer_irq() },
+        0x24 => { handle_pci_intA() },
+        _ => {}
+    }
+    gicv3::GIC::acknowledge_interrupt(intid, group1);
+    enable_all_interrupts();
 }
 
 fn handle_timer_irq() {
@@ -164,15 +174,9 @@ fn handle_pci_intA() {
 }
 
 #[no_mangle]
-fn unhandled_exception_vector(frame: *mut ExceptionFrame) -> ! {
-    let intid: u64;
-    unsafe { asm!("mrs {:x}, ICC_IAR1_EL1", out(reg) intid) };
-    gicv3::GIC::acknowledge_interrupt(intid);
-    disable_all_interrupts();
-    
-    println!("Interrupt: {intid:x?}");
+fn unhandled_exception_vector(frame: *mut ExceptionFrame) {
     unsafe {
         let ec: u8 = ((*frame).esr >> 26 & 0b111111) as u8;
-        panic!("Jump to unhandled exception vector!\r\n{:#x?}{:#b}", *frame, ec);
+        dbg!("Jump to unhandled exception vector!\r\n{:#x?}{:#b}", *frame, ec);
     }
 }
