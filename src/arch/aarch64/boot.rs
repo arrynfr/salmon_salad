@@ -63,7 +63,7 @@ fn setup_apple() -> KernelStruct<'static> {
 fn setup_qemu() -> KernelStruct<'static> {
     let mut k_struct = KernelStruct::default();
     k_struct.serial_addr = Some(0x0900_0000 as *mut u8);
-    serial_init(k_struct.serial_addr.unwrap());
+    unsafe {serial_init(k_struct.serial_addr.unwrap());}
     println!("Serial init succesful");
     
     let fb_addr = va_to_pa(unsafe {&_stack_end} as *const u8 as usize).unwrap() as *mut u8;
@@ -90,7 +90,7 @@ fn setup_qemu() -> KernelStruct<'static> {
         let gic = GIC::new(gicv3::GICD_BASE, gicv3::GICR_BASE)
                         .expect("Error initializing GICv3");
         gic.init_gic();
-        let timer_interrupt = 0x1e;
+        let timer_interrupt = 0x1d;
         gic.set_interrupt_trigger(timer_interrupt, false);
         gic.set_interrupt_group(timer_interrupt, true);
         gic.enable_interrupt(timer_interrupt);
@@ -154,7 +154,7 @@ pub extern fn _start_rust(_argc: u64, _argv: *const *const u64) -> ! {
             let gic = GIC::new(gicv3::GICD_BASE, gicv3::GICR_BASE)
                             .expect("Error getting device");
             gic.per_core_init();
-            let timer_interrupt = 0x1e;
+            let timer_interrupt = 0x1d;
             gic.set_interrupt_trigger(timer_interrupt, false);
             gic.set_interrupt_group(timer_interrupt, true);
             gic.enable_interrupt(timer_interrupt);

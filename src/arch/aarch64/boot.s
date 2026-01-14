@@ -59,36 +59,26 @@ _start:
 # never return to EL2 for now.
 _el2_entry:
     # Enable access to timer registers in EL1
-    #mrs     x0, cnthctl_el2
-    #orr     x0, x0, #3
-    #msr     cnthctl_el2, x0     // allow EL1 system counter access
-    #msr     cntvoff_el2, xzr	// no virtual offset
+    mrs     x0, cnthctl_el2
+    orr     x0, x0, #3
+    msr     cnthctl_el2, x0     // allow EL1 system counter access
+    msr     cntvoff_el2, xzr	// no virtual offset
 
-    #mrs     x0, hcr_el2
-    #mov     x0, #(1 << 31)	    // AArch64
-    #orr     x0, x0, #(1 << 1)	// SWIO
-    #bic     x0, x0, #(1 << 29)  // HCD, disable HVC instructions
-    #msr     hcr_el2, x0
+    mrs     x0, hcr_el2
+    orr     x0, x0, #(1 << 31)   // RW = AArch64 EL1
+    bic     x0, x0, #(1 << 29)   // HCD = disable HVC trapping
+    msr     hcr_el2, x0
+    isb
 
-    #mov x0, #(3 << 20) // Don't trap FP-Instructions
-    #orr x0, x1, x0
-    #msr cpacr_el1, x0
+    mov     x0, #(0b0101)        // EL1h mode
+    orr     x0, x0, #(0b1111 << 6) // mask all interrupts (DAIF)
+    msr     SPSR_EL2, x0
 
-    #mov x0, 0b00101
-    #orr x0, x0, (0b1111 << 6)
-    #msr SPSR_EL2, x0
+    adr x0, _el1_entry
+    msr ELR_EL2, x0
 
-    #adr x0, vector_table_el1
-    #msr vbar_el2, x0
-
-    #adr x0, _el1_entry
-    #msr ELR_EL2, x0
-
-    #isb
-    b _el1_entry
-    #eret   //Todo eret, but this doesn't work atm on my mac...
-            //Maybe get a usb-c cable that supports the serial output soon
-    
+    isb
+    eret    
     # If we get here something went wrong
 _halt:
     wfi
@@ -99,22 +89,20 @@ _halt:
 # That means we do not do anything useful in EL3
 # and just drop down to EL2
 _el3_entry:
-    msr SCTLR_EL2, xzr
-    msr HCR_EL2, xzr
-
     mrs x0, SCR_EL3
     orr x0, x0, #(1 << 10) // AArch64 and 32 controlled by EL2
     orr x0, x0, #(1 << 0)  // EL1 and EL0 are non secure
+    orr x0, x0, #(1 << 8)   // HCE
     msr SCR_EL3, x0
     
     mov x0, xzr
     
-    // Mask interrupts
+    // Mask interrupts DAIF
     orr x0, x0, (0b1111 << 6)
     
     // Set the target EL2
-    orr x0, x0, #0b0001
     orr x0, x0, #0b1000
+    orr x0, x0, #0b0001
     msr SPSR_EL3, x0
 
     adr x0, _el2_entry
@@ -123,15 +111,23 @@ _el3_entry:
     isb
     eret
 
-    b _halt
-
 _el1_entry:
+    #Select EL1 stack
+    msr SPSel, #1   // Select SP_EL1
+    isb
+
     #Enable floating point bits FPEN
     mrs x1, cpacr_el1
     mov x0, #(3 << 20)
     orr x0, x1, x0
     msr cpacr_el1, x0
-
+    isb
+    
+    #Set up EL1 exception vector table (exception.s)
+    adr x0, vector_table_el1
+    msr vbar_el1, x0
+    isb
+    
     mrs x0, MPIDR_EL1
     and x0, x0, #0xFF
 
@@ -142,7 +138,6 @@ _el1_entry:
     sub x1, x1, x3
     mov sp, x1
     
-    mov sp, x1
     cmp x0, xzr
     bne 1f
     bl clear_bss
@@ -151,7 +146,9 @@ _el1_entry:
     and x0, x0, #1
     cmp x0, 1
     beq _after_mmu
+    isb
     bl enable_mmu
+    isb
 
     mrs x0, MPIDR_EL1
     and x0, x0, #0xFF
@@ -184,14 +181,15 @@ _per_core_setup:
     #Set up EL1 exception vector table (exception.s)
     adr x0, vector_table_el1
     msr vbar_el1, x0
+    isb
 
     mov x0, x14
     mov x1, x15
     isb
     dsb sy
+    isb
 
     bl _start_rust // argc = x0; argv = x1
-    ret
 
 .kend:
     dsb sy
@@ -214,7 +212,7 @@ _relocate_binary:
     add x13, x0, x11
     str x13, [x12]
     cmp x1, x2
-    bne _relocate_binary
+    blo _relocate_binary
 1:
     ret
 
