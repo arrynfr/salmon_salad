@@ -1,4 +1,4 @@
-use crate::{arch::{self, aarch64::platform::delay_s}, kernel::uname::Utsname, print, util::util::hex_print32, KERNEL_STRUCT};
+use crate::{arch::{self, host::platform::*}, kernel::uname::Utsname, print, util::util::hex_print32, KERNEL_STRUCT};
 use core::{arch::asm, ascii, ptr::{self, write_volatile}, sync::atomic::Ordering};
 
 use super::graphics::{console::GfxConsole, gfx::Color};
@@ -179,7 +179,7 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
             }
                 Ok(())
         }
-        "uname" => {
+        /*"uname" => {
             let mut ustr = Utsname::default();
             unsafe {
                 asm!("svc 0x0",
@@ -191,7 +191,7 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
             print!("{} ", ustr.version.as_str().trim_matches('\x00'));
             println!("{}", ustr.machine.as_str().trim_matches('\x00'));
             Ok(())
-        }
+        }*/
         "svc" => {
             #[cfg(target_arch = "aarch64")]
             unsafe {asm!("svc 0x5") }
@@ -238,12 +238,8 @@ fn process_command(input_cmd: &mut [ascii::Char; 128]) -> Result<(), ShellError>
                 delay_s(1);
             }
             println!();
-            const SYSTEM_OFF: u32 = 0x8400_0008;
-            unsafe {
-                asm!("hvc 0",
-                in("x0") SYSTEM_OFF,
-                options(nostack, nomem, noreturn));
-            }
+            shutdown();
+            Ok(())
         }
         "exit" => Err(ShellError::UserExit),
         _ => Err(ShellError::UnknownCommand),

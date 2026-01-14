@@ -30,3 +30,12 @@ pub unsafe fn init_smp() {
         }
     }
 }
+
+pub fn psci_shutdown() {
+    const SYSTEM_OFF: u32 = 0x8400_0008;
+    unsafe {
+        asm!("hvc 0",
+        in("x0") SYSTEM_OFF,
+        options(nostack, nomem, noreturn));
+    }
+}

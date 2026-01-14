@@ -1,4 +1,5 @@
 use core::arch::asm;
+use crate::arch::aarch64::driver::qemu::smp::psci_shutdown;
 
 use crate::print;
 
@@ -53,22 +54,25 @@ pub fn get_current_el() -> u8 {
     el >> 2
 }
 
-/// Get elapsed time since poweron in seconds
-#[inline(always)]
-pub fn get_current_poweron_time_in_s() -> f64 {
-    get_system_timer() as f64 / get_system_timer_frequency() as f64
+/// Get elapsed time since poweron in secondsc
+pub fn get_current_poweron_time_in_s() -> u64 {
+    let ticks = get_system_timer() as u128;
+    let freq = get_system_timer_frequency() as u128;
+    (ticks / freq) as u64
 }
 
 /// Get elapsed time since poweron in milliseconds
-pub fn get_current_poweron_time_in_ms() -> f64 {
-    const MS_FACTOR: f64 = 1000_f64;
-    (get_system_timer() as f64 * MS_FACTOR)/ get_system_timer_frequency() as f64
+pub fn get_current_poweron_time_in_ms() -> u64 {
+    let ticks = get_system_timer() as u128;
+    let freq = get_system_timer_frequency() as u128;
+    ((ticks * 1_000) / freq) as u64
 }
 
 /// Get elapsed time since poweron in microseconds
-pub fn get_current_poweron_time_in_us() -> f64 {
-    const US_FACTOR: f64 = 1000000_f64;
-    (get_system_timer() as f64 * US_FACTOR) / get_system_timer_frequency() as f64
+pub fn get_current_poweron_time_in_us() -> u64 {
+    let ticks = get_system_timer() as u128;
+    let freq = get_system_timer_frequency() as u128;
+    ((ticks * 1_000_000) / freq) as u64
 }
 
 /// Get timer frequency in ticks per second
@@ -115,15 +119,17 @@ pub fn delay_ticks(ticks: u64) {
 /// Delay execution for `microseconds` microseconds.
 #[inline(always)]
 pub fn delay_us(microseconds: u32) {
-    const US_FACTOR: f64 = 0.000001;
-    delay_ticks(((microseconds as u64 * get_system_timer_frequency()) as f64 * US_FACTOR) as u64);
+    let freq = get_system_timer_frequency();
+    let ticks = (microseconds as u64 * freq + 999_999) / 1_000_000;
+    delay_ticks(ticks);
 }
 
 /// Delay execution for `milliseconds` milliseconds.
 #[inline(always)]
 pub fn delay_ms(milliseconds: u32) {
-    const MS_FACTOR: f64 = 0.001;
-    delay_ticks(((milliseconds as u64 * get_system_timer_frequency()) as f64 * MS_FACTOR) as u64);
+    let freq = get_system_timer_frequency();
+    let ticks = (milliseconds as u64 * freq + 999) / 1_000;
+    delay_ticks(ticks);
 }
 
 /// Delay execution for `seconds` seconds.
@@ -200,8 +206,9 @@ pub fn set_timer_ticks(ticks: u32) {
 } 
 
 pub fn enable_timer_interrupt(milliseconds: u32) {
-    const MS_FACTOR: f64 = 0.001;
-    set_timer_ticks(((milliseconds as u64 * get_system_timer_frequency()) as f64 * MS_FACTOR) as u32);
+    let freq = get_system_timer_frequency();
+    let ticks = (milliseconds as u64 * freq) / 1000;
+    set_timer_ticks(ticks as u32);
 }
 
 #[no_mangle]
@@ -217,4 +224,8 @@ pub fn drop_to_el0(code: *const u8, sp: *const u8) {
             in(reg) sp
         )
     }
+}
+
+pub fn shutdown() {
+    psci_shutdown();
 }

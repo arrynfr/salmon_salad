@@ -46,3 +46,7 @@ pub fn set_interrupt_mask(imask: u64) {
 pub fn get_mmu_state() -> bool {
     unimplemented!();
 }
+
+pub fn shutdown() {
+    unimplemented!();
+}
